@@ -1,4 +1,4 @@
-# Bug Bully — Bughouse Chess Replay & Analysis Tool
+# Bug Bully — a Vibecoded Bughouse Chess Replay & Analysis Tool
 
 **[Try the App Here](https://bughouse.aronteh.com/)**
 
