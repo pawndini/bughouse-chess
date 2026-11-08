@@ -1,605 +1,386 @@
-# Bug Bully — a Vibecoded Bughouse Chess Replay & Analysis Tool
+# Bug Bully — Vibecoded Bughouse Replay & Analysis
 
-**[Try the App Here](https://bughouse.aronteh.com/)**
+Bug Bully loads completed Chess.com bughouse matches into an interactive two-board
+viewer. Replay the original game, explore alternative lines, inspect engine
+suggestions, and keep a local library of games for later analysis.
 
-Bug Bully is an elegant tool for **replaying and analyzing bughouse games from
-chess.com**. It loads both boards of a bughouse match (the “partner” game),
-merges the moves into a single timeline, and gives you a powerful two-board UI
-for **drops**, **variations**, **live replay**, and **fast navigation**.
+The project runs as a Next.js web application or a packaged Windows Electron app.
+The current package version is **2.7.3**. It is a development fork of
+[Ellipsoul/bughouse-chess](https://github.com/Ellipsoul/bughouse-chess), formerly
+branded Relay. Bug Bully is independent of Chess.com.
 
----
+## Start locally
 
-## For Players (everything you can do)
+Use Node.js **22.12 or newer** and npm. Node.js 24 was used for the current desktop
+build. From the repository root:
 
-### Open a game
-
-- **Paste a chess.com live game ID** (e.g. `159878252255`)
-- **Or open a link directly**:
-  `https://bughouse.aronteh.com/?gameId=159878252255`
-- **Open shared games**: Use `?sharedId=<uuid>` to open games shared by other
-  users
-- **Sample games**: When visiting without a game ID, Bug Bully suggests a random
-  sample game to explore
-- **Partner board auto-detection**
-  - If chess.com provides `partnerGameId`, Bug Bully uses it.
-  - Otherwise, Bug Bully probes nearby IDs to find the paired board.
-
-### Replay the match (two boards, one timeline)
-
-- **Two synchronized boards** (A and B) side-by-side.
-- **Merged move timeline** ordered by timestamp so you can step through the
-  match as it actually unfolded (including simultaneous-move quirks).
-- **Clocks** shown per player (as provided by chess.com), synchronized to the
-  current position.
-- **Clock advantage visualization**: See time differences between teams with
-  color-coded indicators
-- **Material tracking**: Track signed capture totals. The default Bughouse preset
-  uses pawn=1.5, knight/bishop=3, rook=4, queen=7; Settings also offers Standard
-  values (1, 3, 3, 5, 9). Captured promoted pieces count as pawns.
-- **Chess title badges**: Player titles (GM, IM, FM, etc.) are displayed next to
-  usernames
-- **Live replay mode**: play the match back in (approximate) real time using the
-  original timestamps, with play/pause + seeking.
-
-### Analyze positions interactively (bughouse-aware)
-
-- **Make moves directly on the board** (drag-and-drop).
-- **Bughouse drops**
-  - Click a reserve piece to “arm” a drop, then click a target square.
-  - Or drag reserve pieces onto the board.
-- **Promotion picker**: when a move needs promotion, Bug Bully asks you to pick a
-  piece.
-- **Reserves update correctly**: captures on one board feed the partner’s
-  reserve.
-
-### Variations (branching analysis)
-
-- **Branching analysis tree**: explore alternative lines from any position.
-- **Variation selector**: when a node has multiple continuations, stepping
-  forward can open a selector.
-- **Move list with inline variations**: a 4-column layout (A/B × white/black)
-  with side lines shown under the relevant move.
-- **Tools**
-  - **Promote variation** (make a side line the mainline)
-  - **Delete from here** (truncate continuations)
-
-### Notes & quality-of-life
-
-- **Board annotations**: add highlights/arrows to help reason about lines.
-- **Keyboard navigation**
-  - **Left/Right**: back/forward
-  - **Up/Down**: jump to start/end of the current line
-  - **f**: flip boards
-  - Live replay intentionally disables most editing/navigation so playback stays
-    stable.
-- **Toasts**: clear feedback for load states, illegal moves, promotions, etc.
-- **Responsive layout**: boards resize to fit available width; reserves support
-  a compact density mode.
-
-### Match navigation (multi-game)
-
-If you're playing a bughouse match consisting of multiple consecutive games,
-Bug Bully can help you **discover and step through subsequent games** with the same
-four players and the same team pairings (rate-limited to be gentle to
-chess.com).
-
-- **Match discovery**: Scans monthly archives for nearby games, bounded by time
-  gaps and archive availability. Choose the same four-player match or one
-  partner pair playing against changing opponents; results may be incomplete.
-- **Match score tracking**: See wins, losses, and draws across the match
-- **Board orientation**: Automatically maintains correct board orientation as
-  teams swap colors
-- **Navigation controls**: Jump between games in a match with forward/backward
-  navigation
-
-### Sharing & collaboration
-
-- **Share games and matches**: Share individual games or entire matches with
-  other users
-- **Shared games browser**: Browse all shared games at `/shared-games`
-- **Advanced filtering**: Filter shared games by player names (supports
-  team-aware filtering)
-- **Descriptions**: Add optional descriptions (up to 100 characters) when
-  sharing
-- **Profanity filtering**: Automatic filtering of inappropriate content in
-  descriptions
-- **Share links**: Each shared game gets a unique URL that can be shared
-  directly
-
-### User accounts & preferences
-
-- **Google sign-in**: Authenticate with your Google account to unlock sharing
-  features
-- **Username reservation**: Reserve a unique username (one-time, cannot be
-  changed later)
-- **Profile page**: Manage your account and view your shared games
-- **Settings**: Customize your experience
-  - **Board annotation color**: Choose your preferred color for board highlights
-    and arrows
-  - **Piece values**: Choose Bughouse or Standard capture-material scoring
-  - **Live replay auto-advance**: Continue to the next discovered match game
-  - **Cross-device sync**: Preferences sync across devices for authenticated
-    users
-  - **Local storage fallback**: Non-authenticated users can still save
-    preferences locally
-
-### Progressive Web App (PWA)
-
-- **Installable**: Add Bug Bully to your home screen for a native app-like
-  experience
-- **Landscape preference**: The manifest requests landscape orientation for
-  Android phone user agents; enforcement depends on the browser/install mode
-- **Network requirements**: Replay and analysis use in-memory game state once
-  loaded. There is no service worker or guaranteed offline reload; fetching games,
-  remote artwork, sharing, and account operations still need a connection.
-
-### Quick-open helpers (optional)
-
-- **Bookmarklet**: one-click bookmark to open the current game in Bug Bully (see
-  [`user_scripts/bookmarklet.md`](user_scripts/bookmarklet.md))
-- **TamperMonkey**: adds "Ellipviewer" buttons to bughouse games in chess.com
-  game history (see
-  [`user_scripts/ellipviewer_installation.md`](user_scripts/ellipviewer_installation.md))
-
----
-
-## For Developers (setup, architecture, contributing)
-
-### Tech stack
-
-- **Next.js** (App Router) + **React** + **TypeScript**
-- **Tailwind CSS** for styling
-- **chess.js** for rules/legality and FEN state
-- **chessboard.js** (with **jQuery**) for board rendering
-- **Vitest** for unit tests + **Cypress Component Testing** for UI components
-
-For detailed contracts and maintenance workflows, see the
-[architecture guide](docs/architecture.md), [development guide](docs/development.md),
-and [data and service guide](docs/data-and-services.md).
-
-### Architecture map (where to look)
-
-- **Opening-explorer production trial**: `app/opening-explorer/page.tsx`,
-  `app/components/opening-explorer/`. This is a separate one-board surface and
-  does not share viewer replay, analysis, move-tree, or URL state.
-- **Player Insights**: `app/player-insights/page.tsx`,
-  `app/components/player-insights/`, and the checked static projection at
-  `app/data/player-*.json`. This route has no runtime data API.
-
-- **Core bughouse rules / move application**: `app/utils/analysis/applyMove.ts`
-- **Analysis tree + navigation + promotions/variations**:
-  `app/components/moves/useAnalysisState.ts`
-- **Clock simulation + live replay primitives**:
-  `app/utils/analysis/buildBughouseClockTimeline.ts`,
-  `app/utils/analysis/liveReplay.ts`
-- **Move ordering + chess.com ingestion**: `app/utils/board/moveOrdering.ts`,
-  `app/chesscom_movelist_parse.ts`
-- **Replay controller (imperative stepping + undo)**:
-  `app/utils/replay/replayController.ts`
-- **Main UI**: `app/components/viewer/GameViewerPage.tsx`,
-  `app/components/viewer/BughouseAnalysis.tsx`
-- **Shared games**: `app/utils/shared-games/sharedGamesService.ts`,
-  `app/shared-games/SharedGamesPageClient.tsx`
-- **User preferences**: `app/utils/preferences/userPreferencesService.ts`,
-  `app/components/modals/SettingsModal.tsx`
-- **Authentication**: `app/auth/AuthProvider.tsx`, `app/auth/useAuth.ts`
-- **Username service**: `app/utils/preferences/usernameService.ts`
-- **Match discovery**: `app/utils/discovery/matchDiscovery.ts`,
-  `app/components/match/MatchNavigation.tsx`
-
-### Opening-explorer experiment
-
-The opening explorer remains isolated from the two-board viewer and is now
-available as a production trial at
-[`/opening-explorer`](https://bughouse.aronteh.com/opening-explorer). It reads
-only bounded, versioned responses through a same-origin proxy; the browser never
-loads the packed artifact or receives the service credential.
-
-For local development, run two processes: the Python loopback reader from the
-sibling `bughouse-opening-explorer` repository, then this Next.js app pointed at
-that service.
-
-1. Start the opening service (from `bughouse-opening-explorer`):
-
-```bash
-cd ~/Desktop/Coding_Adventures/bughouse-opening-explorer
-
-PYTHONPATH=. .venv/bin/python -m bughouse_explorer.opening.service artifacts/opening/full-position-graph-through-202608-v2 --port 8765
-```
-
-Replace the second argument with whatever artifact you want to build the tree
-on; keep `--port 8765` unless you also change `OPENING_EXPLORER_SERVICE_URL`
-below.
-
-1. Start this application (from `bughouse-chess`):
-
-```bash
-cd ~/Desktop/Coding_Adventures/bughouse/bughouse-chess
-
-OPENING_EXPLORER_SERVICE_URL=http://127.0.0.1:8765 \
-npm run dev
-```
-
-Visit `/opening-explorer` or use the `Opening explorer` sidebar icon. Route,
-sidebar, and proxy are always available in local, Preview, and Production
-builds; no availability feature flag is required.
-
-The local Python reader is a separate process; `npm run dev` does not start it.
-If the reader is absent, the always-present page shows a bounded unavailable
-state and the proxy returns 503. On first visit the browser requests metadata,
-then one root or deep-link neighborhood capped at 500 nodes/256 KiB by default;
-it does not download or initialize the packed artifact in browser memory.
-
-The hosted service origin, exact origin allowlist, timeout, and bearer token are
-server-only `OPENING_EXPLORER_SERVICE_*` variables. Never expose them through a
-`NEXT_PUBLIC_*` variable. Unknown proxy operations return not-found behavior;
-unavailable upstream services return a bounded `503` response.
-
-Production metadata checked on 3 October 2026 reports the August position graph:
-6,747,980 games, dataset `68a97678c3df093d243473e0844b373d669ac335`, in
-`packed-position-graph-v2` format; that dated production observation was not
-rechecked during this local update. The validated local October-only incremental
-candidate contains 7,019,712 games, dataset
-`dbcc296735e87541e82e1f2cdac06a5c17e61174`, and 3,526,334,311 bytes including
-its v2 manifest. It passed the routine incremental integrity/delta/regression and
-local behavior gates. Independent full A/B comparisons were intentionally
-cancelled under the revised workflow; no full-rebuild parity is claimed.
-Current evidence is recorded in
-[`OPENING_INCREMENTAL_RESULT_2026-11-02.md`](https://github.com/Ellipsoul/bughouse-opening-explorer/blob/main/docs/OPENING_INCREMENTAL_RESULT_2026-11-02.md).
-The page now emits low-cardinality browser performance marks and the proxy adds
-its upstream duration to `Server-Timing`. A local candidate does not
-change the served dataset; upload, protected Preview and Production cutover remain
-separate approval gates. The server-side proxy defaults to 45 seconds, with a
-60-second maximum; an explicit deployment override may be shorter.
-
-Possible next moves are ordered by descending game support and use White-win,
-draw, and Black-win bars. Use Up/Down to select a continuation, Right to play
-it, and Left to return along the cached played line. At desktop widths the board
-expands beside a dedicated played-line move list; the far-right controls stack
-the player filter, possible next moves, and instrumentation. The filter accepts
-one corpus-backed player and a White/Black seat choice; autocomplete remains
-visible while typing, and Apply stays disabled until the input exactly matches
-an indexed username. A game ending at the current state appears as an
-unclickable `-` row. A continuation supported by exactly one game becomes a
-link to that source game in Bug Bully's Bughouse
-analysis board and shows both players plus the result; keyboard navigation
-deliberately stops at that boundary. The analysis link opens in a new tab. The
-packed graph retains moves through the last shared placement plus one move (or
-the actual game end). Source links use bounded
-edge-game metadata requests. The earlier bounded multi-game inspection panel is
-intentionally omitted from the user-facing UI.
-
-### Player Insights
-
-`/player-insights` is an isolated, searchable host for insights about the
-permanently tracked player cohort. Its first two chips show lifetime net
-material and net material per analyzed game. The page follows the user's
-Bughouse or Standard piece-value preference. Its Net and individual piece
-columns are click-to-sort controls: the first click ranks the most won, and a
-second click reverses toward the most lost. The Games column follows the same
-interaction for the number of analyzed games. In the per-game view, each
-piece's won, lost, and net figures use the same analyzed-game denominator as
-the overall score.
-
-The third chip, **Average King Height**, shows how far each player's king
-reaches from its own back rank. Every player card includes a nullable weighted
-average and an eight-bucket probability chart. **Average King Height** and
-**Touchdowns** are separate sort toggles; activating the selected metric again
-reverses its direction. An expandable, scroll-contained panel opens every
-public game in which the player's king reached the opposite back rank in Bug Bully's
-Bughouse analysis board; the UI calls these rare games **touchdowns**. These
-links open in a new tab. The minimum-games filter defaults to 1000
-and accepts only non-negative integers. White and Black directions are
-normalized before aggregation, and players with no analyzed games show an em
-dash and remain last in average-height sorting when the minimum is cleared.
-Desktop rows reserve a fixed-height, internally scrolling touchdown area so
-expansion does not move the surrounding leaderboard; mobile cards continue to
-expand naturally. Small mobile layouts hide both explanatory paragraphs and
-use tighter header, navigation, search, sort, and filter spacing so the first
-player arrives earlier.
-
-The fourth chip, **Piece Drop Heat Maps**, shows where each player places
-reserve pawns, knights, bishops, rooks, and queens. **Combined** reflects only
-Black's ranks so both colours advance upward from their own back rank while the
-`a` through `h` files retain their chess meaning. **White** and **Black** expose
-their exact, unnormalized source-square distributions. Individual-player
-comparisons use colour-specific analyzed game counts. Both single-colour modes
-are drawn from White's perspective, with rank 8 at the top.
-
-With no selection, one **All tracked players** row sums the existing permanent
-cohort colour channels by piece and square, with five compact boards in one
-row. Its header uses the dataset-level analyzed-game count rather than summing
-player counts. A searchable multi-select with removable chips replaces that
-aggregate with a
-piecewise player comparison: piece types form columns and chosen players stack
-top-to-bottom within each column. The comparison becomes an internal horizontal
-scroller on narrow screens, so the page itself stays viewport-width. Every
-occupied square shows both its count and its percentage of that row's drops
-of the active piece, with the same exact values in accessible labels and hover
-text. Boards in the cohort and single-player galleries have a 248-pixel minimum
-width, grow evenly, wrap into centered rows, and stack into one centered column
-on narrow screens. Multi-player comparisons retain their piece-column layout
-and scroll horizontally when the container is narrower than the five-column
-table. Secondary orientation copy is hidden on mobile to keep the filters
-compact.
-
-The fifth chip, **Material Game Highs**, shows each player's three greatest
-positive or negative single-game net material results. **Most won** and **Most
-lost** use the same signed captured-minus-lost calculation as the first two
-material insights. Bughouse and Standard values have independently precomputed
-top-three sets, so changing the piece-value preference never rescans a game
-history in the browser. Captured promoted pawns count as pawns.
-
-Players are ranked by their first qualifying game in the selected direction;
-search, a non-negative minimum-games filter, and pagination preserve those
-global ranks. Every retained game has its signed result, date, player colour,
-and a static final position using the analysis board's square palette and piece
-artwork. The board is oriented for that player and disables all moves and
-annotations. Each card links to the game in Bug Bully. Desktop rows show three
-equal boards; phone rows keep 272-pixel cards in an internal horizontal
-scroller so the page itself does not overflow.
-
-Each Player Insights chip has a stable shareable query value:
-
-| Insight | URL parameter |
-| --- | --- |
-| Net Material | `?insight=net-material` |
-| Net Material per Game | `?insight=net-material-per-game` |
-| Average King Height | `?insight=average-king-height` |
-| Piece Drop Heat Maps | `?insight=piece-drop-heatmaps` |
-| Material Game Highs | `?insight=material-game-highs` |
-
-Opening one of these URLs selects that insight after hydration. Switching chips
-updates the `insight` value in place while preserving other query parameters
-and the URL fragment. A missing or unknown value falls back to Net Material.
-The route remains statically prerendered and no insight data is fetched again.
-
-The route imports `app/data/player-material-insights.json` at build time. The
-current 1,170-player file is 223,633 bytes uncompressed and 60,427 bytes with
-deterministic `gzip -9 -n`. The lazy-loaded projections are 875,320 bytes raw /
-152,968 bytes gzipped for king height, 2,087,933 / 648,779 bytes for drop heat
-maps, and 2,543,982 / 445,266 bytes for material game highs. None is part of the
-initial material view. The browser needs no
-SQLite reader, runtime database, route handler, or opening-explorer service
-request. Material rows use a full desktop table and compact five-piece ledgers
-on smaller screens; king height uses a purpose-built responsive card chart;
-drop maps use semantic CSS checkerboards; game highs use static analysis-style
-final boards.
-
-The source of truth remains the checked Player Insights SQLite artifact in the
-sibling `bughouse-opening-explorer` repository. After building and validating a
-future database, refresh this tracked frontend projection from that repository
-with its recorded checksum:
-
-```bash
-.venv/bin/python scripts/run_monthly_refresh.py \
-  --frontend-data-dir ../bughouse/bughouse-chess/app/data \
-  --publish
-```
-
-That first-of-month command updates Chess.com acquisition, creates a checked
-immutable snapshot, rebuilds all registered insights once, double-exports their
-projections, and validates the full set before replacing any file here. It does
-not deploy. For a manual single-projection recovery from an already verified
-artifact, use the lower-level exporters:
-
-```bash
-.venv/bin/python scripts/export_player_insights.py \
-  artifacts/insights/<snapshot>/player-insights.db \
-  ../bughouse/bughouse-chess/app/data/player-material-insights.json \
-  --database-sha256 <player-insights-db-sha256> \
-  --replace
-
-.venv/bin/python scripts/export_king_height_insights.py \
-  artifacts/insights/<snapshot>/player-insights.db \
-  ../bughouse/bughouse-chess/app/data/player-king-height-insights.json \
-  --database-sha256 <player-insights-db-sha256> \
-  --replace
-
-.venv/bin/python scripts/export_drop_heatmap_insights.py \
-  artifacts/insights/<snapshot>/player-insights.db \
-  ../bughouse/bughouse-chess/app/data/player-drop-heatmap-insights.json \
-  --database-sha256 <player-insights-db-sha256> \
-  --replace
-
-.venv/bin/python scripts/export_material_game_highs.py \
-  artifacts/insights/<snapshot>/player-insights.db \
-  ../bughouse/bughouse-chess/app/data/player-material-game-highs.json \
-  --database-sha256 <player-insights-db-sha256> \
-  --replace
-```
-
-The exporters read the database immutably, validate each projection's row
-shape and invariants, and atomically replace the static JSON. Review the JSON
-metadata and checksums, then run this repository's tests, lint, build, and
-production-build browser checks before publication.
-
-The sibling data repository owns the durable contract for adding other insight
-shapes and refreshing them from later snapshots. See its
-[`Player Insights development guide`](https://github.com/Ellipsoul/bughouse-opening-explorer/blob/main/docs/PLAYER_INSIGHTS_DEVELOPMENT_GUIDE.md)
-and
-[`reusable session prompt`](https://github.com/Ellipsoul/bughouse-opening-explorer/blob/main/docs/PLAYER_INSIGHTS_SESSION_PROMPT.md).
-
-### Firebase (optional, for metrics + analytics + user features)
-
-Bug Bully supports:
-
-- **Firestore Admin SDK** for the global game-load metric, server-rendered shared
-  game summaries, social previews, and maintenance scripts
-- **Firestore Web SDK** for browser shared-game reads/writes, private preferences,
-  username reservations, and each user's shared-game index
-- **Firebase Analytics** (Web SDK) for basic interaction tracking (e.g. "Load
-  Game" clicks)
-- **Firebase Authentication** for Google sign-in
-
-Privacy design:
-
-- The browser talks directly to Firestore for sharing, profiles, and preferences;
-  these operations are governed by the checked-in `firestore.rules`.
-- The app uses server routes (e.g., `/api/metrics/game-load`) which
-  increment/read counters stored at Firestore document `metrics/global`.
-- The metric is intentionally anonymous and low-cardinality (no per-game IDs
-  stored). Its GET and POST routes are public; POST validates the body but does
-  not verify an authentication or App Check token.
-- Shared games are public and can be viewed by anyone, but only authenticated
-  users with a reserved username can create them.
-- User preferences are private and only accessible by the user who created them.
-
-#### Firebase / Firestore setup (local + production)
-
-1. Create a Firebase project
-2. Enable Firestore (Native mode)
-3. Enable **Firebase Analytics** for your web app (Project settings →
-   Integrations → Google Analytics)
-4. Create a **Service Account** and copy the JSON credentials
-5. Register your web app in Firebase Console (Project settings → General → Your
-   apps → Add app → Web)
-6. Set these environment variables (recommended in `.env.local`):
-
-**Server-side (Firestore Admin SDK):**
-
-```bash
-FIREBASE_PROJECT_ID="your-project-id"
-FIREBASE_CLIENT_EMAIL="firebase-adminsdk-xxxxx@your-project-id.iam.gserviceaccount.com"
-
-# Important: keep the quotes and use \\n for newlines
-FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\\n...\\n-----END PRIVATE KEY-----\\n"
-```
-
-**Client-side (Auth + Firestore, with optional Analytics and App Check):**
-
-```bash
-NEXT_PUBLIC_FIREBASE_API_KEY="your-api-key"
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN="your-project-id.firebaseapp.com"
-NEXT_PUBLIC_FIREBASE_PROJECT_ID="your-project-id"
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET="your-project-id.appspot.com"
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID="123456789012"
-NEXT_PUBLIC_FIREBASE_APP_ID="1:123456789012:web:abcdef123456"
-NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID="G-XXXXXXXXXX"
-NEXT_PUBLIC_FIREBASE_APPCHECK_SITE_KEY="your-recaptcha-v3-site-key"
-```
-
-Deploy the checked-in `firestore.rules` for browser-backed features. Deny-all
-rules would disable sharing, username reservation, and preference sync. Admin
-SDK reads/writes bypass rules, so successful server reads do not establish that
-browser access is configured correctly.
-
-#### Firestore indexes (programmatic configuration)
-
-Bug Bully keeps Firestore index definitions in `firestore.indexes.json` so indexes
-can be deployed alongside rules with the Firebase CLI:
-
-```bash
-firebase deploy --only firestore:indexes
-```
-
-#### Firebase Authentication (optional, for user sign-in)
-
-Bug Bully supports **Google sign-in** via Firebase Authentication. When enabled,
-users can sign in to unlock authenticated features like sharing games and
-syncing preferences across devices.
-
-**Setup steps:**
-
-1. In Firebase Console, go to **Authentication → Sign-in method → Google** and
-   enable it.
-2. Set a **support email** for the Google provider.
-3. Go to **Authentication → Settings → Authorized domains** and add:
-   - `localhost` (for local development)
-   - Your production domain (e.g. `bughouse.aronteh.com`)
-4. Ensure your web app is registered (Project settings → General → Your apps →
-   Web) and your `.env.local` contains the `NEXT_PUBLIC_FIREBASE_*` values
-   listed above.
-
-**No additional environment variables are needed** — Firebase Auth uses the same
-client-side config (`NEXT_PUBLIC_FIREBASE_*`) already required for Analytics.
-
-The authentication UI is accessible via the **Profile** button in the left
-sidebar. Users can sign in with Google popup and sign out from the profile page.
-
-#### Firestore Collections Structure
-
-When using Firebase features, Bug Bully creates the following Firestore structure:
-
-- `metrics/global` - Global game load counter (server-only access)
-- `sharedGames/{sharedId}` - Public shared games collection
-  - `sharedGames/{sharedId}/games/{index}` - Game data subcollection
-- `users/{userId}/userPreferences/settings` - User preferences (private)
-- `users/{userId}/sharedGames/{sharedId}` - User's shared games index
-- `usernames/{username}` - Username reservation registry
-
-See `firestore.rules` for security rules that enforce privacy and access
-control.
-
-### Run locally
-
-```bash
+```sh
 npm ci
 npm run dev
 ```
 
-Open `http://localhost:3000`. Use Node.js 22.12+ (or a compatible newer LTS)
-for the current dependency set. The basic viewer needs no Firebase credentials;
-account features require the configuration above. See the
-[development guide](docs/development.md) for emulator tests and optional services.
+Open `http://localhost:3000`. Basic game loading, local game storage, and local
+engine analysis do not require Firebase credentials. New Chess.com downloads
+require internet access.
 
-### Useful scripts
+On Windows, `Start-Bug-Bully.bat` starts the development server at
+`http://127.0.0.1:5000`. The older `Start-Relay.bat` forwards to that launcher for
+compatibility with existing shortcuts. Install dependencies before using either.
 
-- `npm run lint`: TypeScript check + ESLint
-- `npm run format`: ESLint auto-fix
-- `npm run test:unit`: Vitest unit tests once
-- `npm run test:component`: Cypress component tests headlessly
-- `npm run test:e2e`: Cypress browser flows with owned demo emulators and Next.js
-- `npm run test:all`: unit, component, and end-to-end suites
-- `npm run build` / `npm start`: production build and local production server
-- `npm run fixtures:record -- <gameId>`: record chess.com fixtures for tests
-- `npm run fixtures:record:match -- <gameId>`: record a discovered match
+## Using the viewer
 
-Fixture recording accesses live Chess.com and rewrites fixture files. Database
-migration commands and their dry-run behavior are documented in the
-[data and service guide](docs/data-and-services.md).
+### Load games and find opponents' games
 
-### Testing strategy
+- Enter a Chess.com live-game ID or paste a supported Chess.com game URL. Direct
+  viewer links accept `?gameId=<id>`; the legacy `gameid` spelling remains supported.
+- The viewer loads the partner board automatically when available. Completed
+  bughouse games are the supported input; other variants are rejected.
+- **Find player games** searches a username's public archives, newest first.
+  The requested count defaults to **1**, with a range of **1–500**.
+- **Exclude one-move games** starts checked. Unchecking or rechecking it saves
+  that choice locally for subsequent searches and browser/app sessions on the
+  same origin.
+- The filter currently skips a match only when **both boards have at most two
+  half-moves**—neither board reaches move 2. Unknown move counts are retained.
+  Excluding a match whenever *either* board is short is a proposed collection
+  rule, not the current search implementation.
+- Search results show players, dates, results, time controls, and both board IDs.
+  Filter the list and choose **Load** to analyze a result.
+- Every accepted search result is automatically added to **Saved Games**, even
+  if it has never been opened. Save failures are reported in the search dialog.
+- Loading a search result puts the searched player and their partner at the
+  bottom of their respective boards. Saved Games also prefers the searched
+  player's board as the first board when that username has been retained.
+  Manual flip and board-order controls remain available.
 
-- **Unit tests (Vitest)** cover deterministic domain logic (move rules, clock
-  simulation, parsing).
-- **Component tests (Cypress)** cover UI components like promotion selection,
-  variation selection, move tree rendering, and reserve interactions.
-- **End-to-end tests (Cypress)** cover game loading, authentication, sharing,
-  settings, and previews with recorded Chess.com responses and Firebase emulators.
-  See [`tests/env/README.md`](tests/env/README.md) for environment isolation.
+**Save list** exports a versioned JSON list of game IDs and display metadata.
+**Open list** restores that list in the search dialog. These lists are not PGN
+files or backups of complete offline games. Opening a list alone does not fetch
+and save every listed game's full data.
 
-### Contributing
+### Replay and explore sidelines
 
-Contributions are welcome — especially around:
+Both boards share a merged move timeline. Step through moves, use timestamp-based
+live replay, or enter moves directly to branch into a sideline. Captures transfer
+pieces to the partner's reserve; reserve pieces can be clicked or dragged onto a
+board. Promotion choices, nested variations, variation promotion, and truncation
+are supported.
 
-- bughouse edge cases / legality correctness
-- UI/UX polish and accessibility
-- performance improvements for large games
-- more fixtures + regression tests for tricky chess.com payloads
+Other viewer controls include board flipping, swapping left/right boards,
+annotations, and desktop fullscreen where supported. Dialog backdrops dismiss
+popups through their existing close/cancel actions; active save/delete operations
+can temporarily prevent dismissal.
 
-If you’re adding new domain logic, prefer pure functions in `app/utils/**` and
-accompany them with unit tests under `tests/unit/**`.
+Clocks remain **white above 20 seconds** and turn **red at 20 seconds or less**.
+They follow the recorded timeline and freeze at the mainline anchor while
+exploring a variation; they are not simulated clocks for newly entered moves.
 
-### Dynamic link previews
+| Shortcut | Action |
+| --- | --- |
+| Left / Right | Previous / next move; seek during live replay |
+| Up / Down | Jump to the start / end outside a variation picker |
+| Space | Toggle live replay when available |
+| F | Flip the boards |
+| S | Swap left/right board order |
+| Escape | Cancel a pending drop, promotion, or variation selection |
 
-Game links (`?gameId=...`, including legacy `gameid`) and saved shares
-(`?sharedId=...`) expose a 1200 × 630 PNG through `/api/social-preview` in their
-server-rendered Open Graph and Twitter metadata. The existing share URLs work
-without changes:
+The variation picker uses Up/Down to choose, Enter/Right to accept, and
+Escape/Left to cancel. Text fields and focused controls retain their own keyboard
+behavior.
 
-- `ply=N`: both boards after N moves in the combined timeline (0 is the initial position).
-- No `ply`: the final position; saved matches and partner series use their first stored game.
-- Homepage, unavailable games, missing partner boards, or replay failures: the Bug Bully artwork.
+### Fairy-Stockfish analysis
 
-The renderer reuses the replay engine and bundled board artwork. Direct links read
-Chess.com; saved shares read only their public parent document and first indexed
-game using the existing Firebase Admin configuration. No database migration or
-image-storage service is required. Source reads revalidate after five minutes;
-rendered images can be cached by the CDN for one hour. Social platforms also cache
-previews independently, so previously posted links may retain their old thumbnail.
+Enable **Fairy Stockfish** to analyze the current positions. Engine files and the
+Crazyhouse NNUE network are bundled under `public/engine/fairy/`; searches run
+locally in WebAssembly. **Engine arrows** independently shows or hides the arrows
+on both boards while evaluations continue.
 
-Deploy the changes through the normal release process, then verify a new game,
-position, and match link in the target social app. Ensure `NEXT_PUBLIC_SITE_URL`
-points to the public deployment and the existing Firebase Admin variables are
-configured. Local fixture tests do not establish live Discord or Firebase success.
+Player evaluation labels and board evaluation bars follow the current analysis
+node, including sidelines. Player labels express the score from that player's
+color perspective. Old-position results are hidden when the cursor changes and
+late results are ignored.
+
+In a sideline, **After a partner capture** shows conditional continuations when
+an immediate legal capture on the other board can supply a piece. Choosing a
+capture adds that legal move to the analysis tree, after which the receiving
+player can use the piece normally. These notices stay hidden on the analysis tree's current
+mainline.
+
+This is a **single-board Crazyhouse engine integration with partner-capture
+lookahead**, not a joint four-player bughouse search. Normal searches use three
+candidate lines at depth 11; conditional supply searches are additionally bounded
+to 750 ms. Conditional receiving-board scores do not evaluate the complete
+strategic cost of the partner's capture. The engine requires browser WebAssembly
+support and the bundled WASM/network files.
+
+### Capture-material counters
+
+Small signed numbers near the player bars track material gained or lost through
+captures on that board. Hover or keyboard-focus the adjacent information icon for
+an explanation. Drops do not change these totals, and captured promoted pieces
+count as pawns. These counters are separate from engine evaluations.
+
+Settings offers these piece-value presets:
+
+| Preset | Pawn | Knight | Bishop | Rook | Queen |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Bughouse, default | 1.5 | 3 | 3 | 4 | 7 |
+| Standard | 1 | 3 | 3 | 5 | 9 |
+
+### Saved Games and storage
+
+**Saved Games** lists local game payloads, supports player search, and opens games
+back into the viewer. Select individual checkboxes or use the bold **Select All**
+toggle, which applies to the currently visible results. Selections outside the
+filter remain selected. **Delete selected** requires confirmation; failed
+removals remain available to retry. Single-game deletion is also available.
+
+IndexedDB stores **one complete record per match**, with small lookup entries for
+both board IDs. Either ID can load its board as the original board without
+storing another full copy. Deleting a match removes its record and both lookups.
+The version-2 database upgrade automatically consolidates older reverse and
+incomplete records. Migration is transactional: a failed upgrade retains the old
+saves. Close other app tabs/windows if an older connection blocks the upgrade.
+
+Storage is local to the browser profile and **origin, including its port**.
+`localhost:3000` and `127.0.0.1:5000` have separate libraries. The Electron launcher
+currently selects a free port at startup, so its origin can change between
+launches and previously saved games/preferences may not appear in a later
+session. A fixed development URL avoids that port change. This is a current
+limitation, not a completed cross-origin storage migration.
+
+Saved Games caches source-game data, not the interactive variation tree or board
+annotations. Clearing browser site data removes that origin's library. Full
+cached matches can still be replayed when Chess.com requests fail or the device
+is offline, provided the application and its local assets are available; a web manifest alone does not cache the entire
+website for offline startup.
+
+## Other application pages
+
+### Match discovery and shared games
+
+The viewer can discover subsequent games for the same four players or a selected
+partner pair. Match navigation preserves the chosen team perspective across
+color changes. An optional preference advances live replay through a discovered
+series.
+
+With Firebase configured, users can sign in with Google, reserve an application
+username, share source games/matches, browse `/shared-games`, and manage their
+own shares. Shared links use `?sharedId=<id>` and can include a position via `ply`.
+The app generates branded game/share preview images. Sharing a source game is
+not an export of the current sideline tree.
+
+### Opening explorer
+
+`/opening-explorer` is an existing frontend for a separate opening-data service.
+It offers position neighborhoods, continuation frequencies/results, a played
+line, player/color filtering, and links to source games. It does **not** build
+its dataset from the local Saved Games library.
+
+The reader service and packed datasets belong to the separate
+`bughouse-opening-explorer` project. `npm run dev` does not start that service.
+Without a configured reader, the page shows an unavailable state.
+
+| Server setting | Purpose |
+| --- | --- |
+| `OPENING_EXPLORER_SERVICE_URL` | Reader origin; defaults to `http://127.0.0.1:8765` |
+| `OPENING_EXPLORER_SERVICE_ALLOWED_ORIGINS` | Exact permitted HTTPS origins for hosted access |
+| `OPENING_EXPLORER_SERVICE_TOKEN` | Bearer token for hosted access; server-only |
+| `OPENING_EXPLORER_SERVICE_TIMEOUT_MS` | Request timeout; defaults to 45,000 ms |
+
+Loopback HTTP is accepted only outside production. Hosted production access
+requires HTTPS, an allowlisted origin, and a token. See
+[data and service boundaries](docs/data-and-services.md#opening-service).
+
+### Player Insights
+
+`/player-insights` reads checked-in JSON projections in `app/data/`, including
+material totals, king-height analysis, piece-drop heatmaps, and material game
+highs. These are build assets, not statistics calculated from the user's local
+library. Acquisition, SQLite snapshots, and projection generation belong to the
+separate data project.
+
+For a data refresh, run the sibling repository's validated monthly-refresh or
+projection-export workflow with this checkout's `app/data/` as the destination.
+For example, from that repository's configured Python environment:
+
+```sh
+.venv/bin/python scripts/run_monthly_refresh.py \
+  --frontend-data-dir /path/to/this-checkout/app/data \
+  --publish
+```
+
+Here `--publish` replaces generated frontend projection files; it does not deploy
+the application. Review snapshot metadata and checksums before committing the
+resulting JSON; do not hand-edit projection counts. The frontend repository does
+not include those Python exporters. See [Player Insights data boundaries](docs/data-and-services.md#player-insights-projections).
+
+## Windows desktop build
+
+From a Windows checkout with dependencies installed:
+
+```sh
+npm run desktop:pack
+```
+
+This builds Next.js in standalone mode, stages its server and assets, and creates
+an x64 NSIS installer:
+
+```text
+dist/Bug-Bully-Setup-2.7.3.exe
+```
+
+`npm run desktop:dir` creates the unpacked application under `dist/win-unpacked/`.
+`npm run desktop:stage` only stages an already completed standalone build.
+The packaged app runs its own local server; users do not need a separate Node.js
+installation. Desktop and Start-menu shortcuts use **Bug Bully**. The current
+build does not configure a code-signing certificate.
+
+Build outputs, `.desktop-stage`, local runtime/cache directories, and dependencies
+are ignored by Git. Rebuilding an installer does not install it or update an
+already running app. Browser metadata also supplies the Bug Bully name for
+installable-web-app entry points.
+
+## Firebase / Firestore setup (local + production)
+
+<a id="firebase--firestore-setup-local--production"></a>
+
+Firebase is optional for core local analysis. Account, cloud-sharing, preference
+sync, analytics, and global load metrics use it when configured. Create a Firebase
+project and web app, enable Google authentication, authorize the development or
+deployment host, and supply the client fields in a local `.env.local`:
+
+```dotenv
+NEXT_PUBLIC_FIREBASE_API_KEY=your-web-app-api-key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-storage-bucket
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
+NEXT_PUBLIC_FIREBASE_APP_ID=your-app-id
+```
+
+`NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID` enables the Analytics configuration;
+`NEXT_PUBLIC_FIREBASE_APPCHECK_SITE_KEY` supplies the optional reCAPTCHA site key.
+For server-side Firestore reads and metrics, also configure:
+
+```dotenv
+FIREBASE_PROJECT_ID=your-project
+FIREBASE_CLIENT_EMAIL=your-service-account-email
+FIREBASE_PRIVATE_KEY="your-service-account-key-with-escaped-newlines"
+```
+
+Keep the service-account credentials server-only and out of Git. Client Firebase
+configuration identifies the web app; it is not a replacement for Firestore rules.
+The repository includes `firebase.json`, `firestore.rules`, and
+`firestore.indexes.json`. Review the target project before deployment:
+
+```sh
+npx firebase deploy --only firestore:rules,firestore:indexes --project YOUR_PROJECT_ID
+```
+
+`NEXT_PUBLIC_SITE_URL` sets the public origin used for metadata and share URLs.
+Client configuration is embedded at build time, so configure it before building
+an installer or production web bundle.
+
+Local emulator runs can instead use a `demo-` project with
+`FIRESTORE_EMULATOR_HOST`, `NEXT_PUBLIC_FIRESTORE_EMULATOR_HOST`, and
+`NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_HOST`. See the exact setup and collection
+contracts in [data and services](docs/data-and-services.md) and
+[test environment notes](tests/env/README.md).
+
+## Development and verification
+
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Development web server |
+| `npm run build` | Production standalone build |
+| `npm start` | Start the built production web app |
+| `npm run lint` | TypeScript check followed by repository-wide ESLint |
+| `npm run format` | ESLint autofix; changes files |
+| `npm run test:unit` | Vitest unit, hook, route, UI, and IndexedDB tests |
+| `npm run test:component` | Cypress component tests with Firebase emulators |
+| `npm run test:e2e` | Cypress E2E tests with emulators and a dev server |
+| `npm test` | Unit and component suites |
+| `npm run test:all` | Unit, component, and E2E suites |
+
+The Cypress shell runner requires Bash, Java for the Firebase emulators, `curl`,
+`lsof`, and an installed Cypress binary. On Windows, use an environment providing
+those tools; the ordinary npm unit/build commands can run from PowerShell.
+Recorded fixtures keep normal tests separate from live Chess.com acquisition.
+`fake-indexeddb` tests cover storage migration, rollback, lookup, and deletion.
+
+**Recorded validation, 2026-11-08:** the full unit run reported **630 passes and
+three failures**: two outdated styling assertions in
+`tests/unit/components/ChessTitleBadge.test.tsx` and a missing router context in
+`tests/unit/components/Sidebar.test.tsx`. The latest production/Windows package
+build and packaged-server startup check passed. This is a dated checkpoint, not
+a claim that every test or lint check is currently green.
+
+Fixture acquisition commands access Chess.com and write JSON under
+`tests/fixtures/chesscom/`:
+
+```sh
+npm run fixtures:record -- GAME_ID
+npm run fixtures:record:match -- GAME_ID
+```
+
+The `migration:shared-games-*` npm scripts are separate Firebase maintenance
+tools, not the IndexedDB upgrade. They default to dry runs; review their source
+and target project before enabling writes. See [development notes](docs/development.md).
+
+## Code map
+
+| Location | Responsibility |
+| --- | --- |
+| `app/components/viewer/` | Game loading, two-board analysis/replay, player search |
+| `app/components/modals/SavedGamesModal.tsx` | Local library, selection, deletion |
+| `app/components/moves/useAnalysisState.ts` | Analysis tree, cursor, variations |
+| `app/utils/analysis/` | Legal moves/drops, captures, clocks, replay helpers |
+| `app/utils/engine/` | Fairy-Stockfish adapter and partner-capture options |
+| `app/utils/offlineGameStore.ts` | IndexedDB match records, board-ID index, migration |
+| `app/actions.ts` | Chess.com game/partner/archive requests |
+| `app/api/` | Opening-service proxy, shared statistics, metrics, social previews |
+| `app/auth/` and `app/utils/platform/` | Firebase integration and platform helpers |
+| `electron/` and `scripts/*desktop*` | Desktop launcher and standalone staging |
+| `public/engine/fairy/` | Bundled WASM engine, NNUE network, notices |
+| `tests/` and `cypress/` | Automated tests and recorded game fixtures |
+
+The stack is Next.js 16, React 19, TypeScript, Tailwind CSS, chess.js,
+chessboard.js, MobX, Firebase, and Electron. Existing `relay:*` event/preference
+keys, the `relay-offline-games` database name, and some packaging identifiers
+remain intentionally unchanged from the old branding.
+
+## Chess.com access and current limitations
+
+Runtime game acquisition uses these GET endpoint patterns:
+
+```text
+https://api.chess.com/pub/player/{username}/games/archives
+https://api.chess.com/pub/player/{username}/games/{YYYY}/{MM}
+https://www.chess.com/callback/live/game/{gameId}
+```
+
+The first two are part of the published API. The callback endpoint supplies the
+individual-board details used for full replay; it is not documented in the
+published endpoint reference and can change or become unavailable. Partner
+resolution can make extra requests to nearby IDs when no partner ID is supplied.
+The current app does not call the monthly `/pgn` download endpoint.
+
+The proposed built-in bulk opponent importer, monthly `tcn` opening-database
+collection, and puzzle-mining workflow are **not implemented** here. Existing
+Player Insights and the external opening explorer should not be confused with
+that proposed local collection tool. No guaranteed download rate or complete
+historical coverage is claimed.
+
+Development references: [architecture](docs/architecture.md),
+[data and services](docs/data-and-services.md),
+[development workflow](docs/development.md), and the
+[Chess.com Published-Data API](https://www.chess.com/news/view/published-data-api).
+
+## Third-party notices
+
+Fairy-Stockfish's GPL license and authorship notices are included in
+`public/engine/fairy/Copying.txt` and `public/engine/fairy/AUTHORS`; bundled-engine
+and network provenance is recorded in that directory's `README.txt`.
+Chess-piece asset attribution is in `public/pieces/LICENSE.md`.
+Preserve these notices when redistributing the desktop package.
