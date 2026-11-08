@@ -16,7 +16,7 @@
  * This file is adapted from the open-source "bughouse-viewer" move ordering logic,
  * with additional normalization to match our bughouse-specific SAN conventions.
  */
-import { BughouseMove, ProcessedGameData } from "@/app/types/bughouse";
+import { BughouseMove, BughousePlayer, ProcessedGameData } from "@/app/types/bughouse";
 import { ChessGame } from "@/app/actions";
 import { parseChessComCompressedMoveList } from "@/app/chesscom_movelist_parse";
 
@@ -40,8 +40,8 @@ function normalizeChessTitle(raw: unknown): string | undefined {
  * explicit `color` field rather than assuming a fixed screen position mapping.
  */
 function getPlayersByColor(game: ChessGame | null | undefined): {
-  white: { username: string; rating: number; chessTitle?: string } | null;
-  black: { username: string; rating: number; chessTitle?: string } | null;
+  white: BughousePlayer | null;
+  black: BughousePlayer | null;
 } {
   if (!game) return { white: null, black: null };
 
@@ -51,9 +51,11 @@ function getPlayersByColor(game: ChessGame | null | undefined): {
   const normalizedTopColor = String(top.color || "").toLowerCase();
   const normalizedBottomColor = String(bottom.color || "").toLowerCase();
 
-  const asPlayer = (p: { username: string; rating: number; chessTitle?: string }) => ({
+  const asPlayer = (p: ChessGame["players"]["top"]): BughousePlayer => ({
     username: p.username || "Unknown",
     rating: p.rating,
+    avatarUrl: p.avatarUrl,
+    countryName: p.countryName,
     chessTitle: normalizeChessTitle(p.chessTitle),
   });
 
@@ -106,21 +108,29 @@ export function processGameData(
         username: originalPlayers.white?.username || "Unknown",
         rating: originalPlayers.white?.rating,
         chessTitle: originalPlayers.white?.chessTitle,
+        avatarUrl: originalPlayers.white?.avatarUrl,
+        countryName: originalPlayers.white?.countryName,
       },
       aBlack: {
         username: originalPlayers.black?.username || "Unknown",
         rating: originalPlayers.black?.rating,
         chessTitle: originalPlayers.black?.chessTitle,
+        avatarUrl: originalPlayers.black?.avatarUrl,
+        countryName: originalPlayers.black?.countryName,
       },
       bWhite: {
         username: partnerPlayers.white?.username || "Unknown",
         rating: partnerPlayers.white?.rating,
         chessTitle: partnerPlayers.white?.chessTitle,
+        avatarUrl: partnerPlayers.white?.avatarUrl,
+        countryName: partnerPlayers.white?.countryName,
       },
       bBlack: {
         username: partnerPlayers.black?.username || "Unknown",
         rating: partnerPlayers.black?.rating,
         chessTitle: partnerPlayers.black?.chessTitle,
+        avatarUrl: partnerPlayers.black?.avatarUrl,
+        countryName: partnerPlayers.black?.countryName,
       },
     },
     initialTime,

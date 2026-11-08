@@ -67,7 +67,7 @@ required for an ordinary unit test run.
 
 The optional [bookmarklet](../user_scripts/bookmarklet.md) and
 [userscript](../user_scripts/ellipviewer_installation.md) open Chess.com games in
-Relay. They use the supported legacy `gameid` query spelling. The userscript relies
+Bug Bully. They use the supported legacy `gameid` query spelling. The userscript relies
 on Chess.com DOM heuristics and is separate from application runtime code.
 
 ## Updating documentation alongside code

@@ -31,7 +31,7 @@ import type { BughousePlayer } from "../../types/bughouse";
 import type { AnalysisNode, BughouseBoardId, BughouseSide } from "../../types/analysis";
 import { buildBughouseClockTimeline } from "../../utils/analysis/buildBughouseClockTimeline";
 import { buildPerBoardMoveDurationsDeciseconds } from "../../utils/analysis/buildPerBoardMoveDurationsDeciseconds";
-import { getClockTintClasses, getTeamTimeDiffDeciseconds } from "../../utils/board/clockAdvantage";
+import { getClockTextClass } from "../../utils/board/clockDisplay";
 import {
   createInitialPositionSnapshot,
   validateAndApplyMoveFromNotation,
@@ -70,6 +70,8 @@ import {
 } from "../../utils/board/boardOrderMapping";
 import { clampPlyToMainlineBounds } from "../../utils/discovery/gameViewerUrlState";
 import { usePieceValuePreset } from "../../utils/preferences/usePieceValuePreset";
+import { analyzeWithFairyStockfish, parseEngineMove, stopFairyStockfishAnalysis, type FairyAnalysisLine } from "../../utils/engine/fairyStockfish";
+import { getEngineBoardInput, getPartnerCaptureOptions, previewEngineMove, type PartnerCaptureOption } from "../../utils/engine/partnerCaptures";
 
 /** Props for the main dual-board analysis surface. */
 interface BughouseAnalysisProps {
@@ -176,6 +178,19 @@ const DESKTOP_FULLSCREEN_MEDIA_QUERY = "(hover: hover) and (pointer: fine)";
  * - always renders both boards from first paint (start position when no game loaded)
  * - supports move entry + drops + nested variations (wired via analysis store)
  */
+const flagCodesByCountry = new Map<string, string>();
+const englishRegions = new Intl.DisplayNames("en", { type: "region", fallback: "none" });
+for (const first of "ABCDEFGHIJKLMNOPQRSTUVWXYZ") {
+  for (const second of "ABCDEFGHIJKLMNOPQRSTUVWXYZ") {
+    const code = first + second;
+    const name = englishRegions.of(code);
+    if (name) flagCodesByCountry.set(name.toLowerCase(), code.toLowerCase());
+  }
+}
+flagCodesByCountry.set("england", "gb-eng");
+flagCodesByCountry.set("scotland", "gb-sct");
+flagCodesByCountry.set("wales", "gb-wls");
+
 const BughouseAnalysis: React.FC<BughouseAnalysisProps> = ({
   gameData,
   initialGlobalPly,
@@ -341,11 +356,138 @@ const BughouseAnalysis: React.FC<BughouseAnalysisProps> = ({
    *   (because the other board's FEN remains unchanged across those nodes).
    */
   const [annotationsByFen, setAnnotationsByFen] = useState(() => createEmptyBoardAnnotationsByFen());
+  const [engineEnabled, setEngineEnabled] = useState(false);
+  const [engineArrowsVisible, setEngineArrowsVisible] = useState(true);
+  const engineMoveCount = 3;
+  const [engineStatus, setEngineStatus] = useState("Engine is off");
+  type EngineLines = Partial<Record<BughouseBoardId, {
+    team: FairyAnalysisLine[];
+    opponent: FairyAnalysisLine[];
+    supplies?: { option: PartnerCaptureOption; line: FairyAnalysisLine }[];
+  }>>;
+  const [engineResult, setEngineResult] = useState<{
+    position: typeof currentPosition;
+    lines: EngineLines;
+  } | null>(null);
+
+  const engineRequestIdRef = useRef(0);
+  type LiveReplayStatus = "idle" | "playing" | "finished";
+  const [liveReplayStatus, setLiveReplayStatus] = useState<LiveReplayStatus>("idle");
+  const isLiveReplayPlaying = liveReplayStatus === "playing";
+
+  const engineLines = engineEnabled && !isLiveReplayPlaying && engineResult?.position === currentPosition
+    ? engineResult.lines
+    : undefined;
 
   const boardAFenKey = toFenKey(currentPosition.fenA);
   const boardBFenKey = toFenKey(currentPosition.fenB);
   const boardAAnnotations = getAnnotationsForFen(annotationsByFen, "A", boardAFenKey);
   const boardBAnnotations = getAnnotationsForFen(annotationsByFen, "B", boardBFenKey);
+
+  /**
+   * Mainline membership set (root + root→mainChildId chain).
+   *
+   * We treat the "mainline" as the canonical loaded game line; all other children
+   * are variations (even if the user is exploring them via the cursor).
+   */
+  const mainlineNodeIdSet = useMemo(() => {
+    const set = new Set<string>();
+    let nodeId: string | null = state.tree.rootId;
+    while (nodeId) {
+      set.add(nodeId);
+      const nextMainlineId: string | null = state.tree.nodesById[nodeId]?.mainChildId ?? null;
+      nodeId = nextMainlineId;
+    }
+    return set;
+  }, [state.tree.nodesById, state.tree.rootId]);
+
+  const isCursorOnMainline = useMemo(() => {
+    return mainlineNodeIdSet.has(state.cursorNodeId);
+  }, [mainlineNodeIdSet, state.cursorNodeId]);
+
+  useEffect(() => {
+    if (!engineEnabled || !gameData || isLiveReplayPlaying) {
+      setEngineResult(null);
+      setEngineStatus(engineEnabled ? "Load a game to analyze" : "Engine is off");
+      return;
+    }
+    const requestId = ++engineRequestIdRef.current;
+    const timer = window.setTimeout(async () => {
+      setEngineResult(null);
+      setEngineStatus("Loading Fairy-Stockfish…");
+      const boards = (["A", "B"] as const).flatMap((board): {
+        board: BughouseBoardId;
+        fen: string;
+        pockets: string;
+        perspective: "team" | "opponent";
+        multipv: number;
+      }[] => {
+        const fen = board === "A" ? currentPosition.fenA : currentPosition.fenB;
+        const turn = fen.split(" ")[1];
+        const teammateTurn = board === "A"
+          ? (isBoardsFlipped ? "b" : "w")
+          : (isBoardsFlipped ? "w" : "b");
+        const perspective = turn === teammateTurn ? "team" : "opponent";
+        const { pockets } = getEngineBoardInput(currentPosition, board);
+        return [{
+          board,
+          fen,
+          pockets,
+          perspective,
+          multipv: engineMoveCount,
+        }];
+      });
+      setEngineStatus("Analyzing both boards…");
+      const next: EngineLines = {};
+      try {
+        for (const board of boards) {
+          const result = await analyzeWithFairyStockfish(board.fen, board.pockets, board.multipv);
+          if (engineRequestIdRef.current !== requestId) return;
+          next[board.board] = {
+            team: next[board.board]?.team ?? [],
+            opponent: next[board.board]?.opponent ?? [],
+            [board.perspective]: result,
+          };
+          setEngineResult({ position: currentPosition, lines: { ...next } });
+        }
+        if (!isCursorOnMainline) {
+          setEngineStatus("Checking partner captures…");
+          for (const board of boards) {
+            for (const option of getPartnerCaptureOptions(currentPosition, board.board)) {
+              if (engineRequestIdRef.current !== requestId) return;
+              // Every capture in this group gives the same receiving-board position.
+              const input = getEngineBoardInput(option.captures[0].position, board.board);
+              const [line] = await analyzeWithFairyStockfish(input.fen, input.pockets, 1, 750);
+              if (engineRequestIdRef.current !== requestId) return;
+              if (!line) continue;
+              const existing = next[board.board]!;
+              next[board.board] = { ...existing, supplies: [...(existing.supplies ?? []), { option, line }] };
+              setEngineResult({ position: currentPosition, lines: { ...next } });
+            }
+          }
+        }
+        if (engineRequestIdRef.current === requestId) {
+          setEngineStatus("Analysis ready");
+        }
+      } catch (error) {
+        if (engineRequestIdRef.current !== requestId) return;
+        setEngineStatus(error instanceof Error ? error.message : "Fairy-Stockfish could not analyze this position");
+      }
+    }, 200);
+    return () => {
+      window.clearTimeout(timer);
+      engineRequestIdRef.current += 1;
+      stopFairyStockfishAnalysis();
+    };
+  }, [
+    currentPosition,
+    engineEnabled,
+    engineMoveCount,
+    isCursorOnMainline,
+    gameData,
+    isBoardsFlipped,
+    isLiveReplayPlaying,
+  ]);
 
   const handleBoardAAnnotationsChange = useCallback(
     (next: BoardAnnotations) => {
@@ -454,10 +596,6 @@ const BughouseAnalysis: React.FC<BughouseAnalysisProps> = ({
 
   const players = processedGame?.players ?? PLACEHOLDER_PLAYERS;
   const shouldRenderClocks = Boolean(processedGame);
-
-  type LiveReplayStatus = "idle" | "playing" | "finished";
-  const [liveReplayStatus, setLiveReplayStatus] = useState<LiveReplayStatus>("idle");
-  const isLiveReplayPlaying = liveReplayStatus === "playing";
 
   /**
    * Live replay “playhead” time in deciseconds, expressed as elapsed time since game start.
@@ -928,27 +1066,6 @@ const BughouseAnalysis: React.FC<BughouseAnalysisProps> = ({
     [state.tree.nodesById],
   );
 
-  /**
-   * Mainline membership set (root + root→mainChildId chain).
-   *
-   * We treat the "mainline" as the canonical loaded game line; all other children
-   * are variations (even if the user is exploring them via the cursor).
-   */
-  const mainlineNodeIdSet = useMemo(() => {
-    const set = new Set<string>();
-    let nodeId: string | null = state.tree.rootId;
-    while (nodeId) {
-      set.add(nodeId);
-      const nextMainlineId: string | null = state.tree.nodesById[nodeId]?.mainChildId ?? null;
-      nodeId = nextMainlineId;
-    }
-    return set;
-  }, [state.tree.nodesById, state.tree.rootId]);
-
-  const isCursorOnMainline = useMemo(() => {
-    return mainlineNodeIdSet.has(state.cursorNodeId);
-  }, [mainlineNodeIdSet, state.cursorNodeId]);
-
   const areClocksFrozen = shouldRenderClocks && !isCursorOnMainline;
 
   const effectiveClockNodeId = isCursorOnMainline
@@ -1355,7 +1472,6 @@ const BughouseAnalysis: React.FC<BughouseAnalysisProps> = ({
     (
       player: BughousePlayer,
       clockValue?: number,
-      team?: "AWhite_BBlack" | "ABlack_BWhite",
       options: {
         /**
          * Whether this player is currently to-move for the relevant board.
@@ -1371,15 +1487,26 @@ const BughouseAnalysis: React.FC<BughouseAnalysisProps> = ({
          * Optional tiny corner material counter shown in the outer board corners.
          */
         cornerMaterial?: { value: number; corner: "top-left" | "top-right" | "bottom-left" | "bottom-right" };
+        /** Current board evaluation, shown from this player's color perspective. */
+        evaluation?: { score: string; side: BughouseSide };
       } = {},
     ) => {
-      const diffDeciseconds = clockSnapshot ? getTeamTimeDiffDeciseconds(clockSnapshot) : 0;
-      const tint =
-        team && clockSnapshot
-          ? getClockTintClasses({ diffDeciseconds, team, isFrozen: options.clocksFrozen })
-          : null;
-      const neutralText = options.clocksFrozen ? "text-white/55" : "text-white/90";
+      const flagCode = flagCodesByCountry.get(player.countryName?.trim().toLowerCase() ?? "");
       const isNarrowPlayerBar = boardSize < 340;
+      const rawEval = options.evaluation?.score ?? "";
+      const mateEval = rawEval.match(/^M(-?\d+)$/);
+      const cpEval = Number(rawEval);
+      const evalIsMate = Boolean(mateEval);
+      const whitePerspectiveValue = mateEval ? Number(mateEval[1]) : cpEval;
+      const playerPerspectiveValue = options.evaluation?.side === "black" ? -whitePerspectiveValue : whitePerspectiveValue;
+      const playerEvalText = !options.evaluation || (!mateEval && !Number.isFinite(cpEval))
+        ? null
+        : mateEval
+          ? `M${playerPerspectiveValue}`
+          : `${playerPerspectiveValue > 0 ? "+" : ""}${playerPerspectiveValue.toFixed(2)}`;
+      const evalFavorsPlayer = evalIsMate
+        ? playerPerspectiveValue > 0
+        : playerPerspectiveValue > 0;
       return (
         <div
           className="bh-player-bar relative text-white"
@@ -1395,11 +1522,40 @@ const BughouseAnalysis: React.FC<BughouseAnalysisProps> = ({
           />
         ) : null}
         <div className="bh-player-identity">
+          {player.avatarUrl && /^https:\/\/images\.chesscomfiles\.com\//i.test(player.avatarUrl) ? (
+            // The game payload already provides a small, ready-to-display avatar.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={player.avatarUrl}
+              src={player.avatarUrl}
+              alt=""
+              width={24}
+              height={24}
+              referrerPolicy="no-referrer"
+              className="h-6 w-6 shrink-0 rounded object-cover"
+              onError={(event) => { event.currentTarget.hidden = true; }}
+            />
+          ) : null}
           <div className="bh-player-details">
-            <ChessTitleBadge chessTitle={player.chessTitle} />
-            <span className="bh-player-name" title={player.username} tabIndex={0}>
-              {player.username}
-            </span>
+            <div className="bh-player-name-row">
+              <ChessTitleBadge chessTitle={player.chessTitle} />
+              <span className="bh-player-name" title={player.username} tabIndex={0}>
+                {player.username}
+              </span>
+              {flagCode ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  key={flagCode}
+                  src={`https://flagcdn.com/w20/${flagCode}.png`}
+                  alt={player.countryName}
+                  title={player.countryName}
+                  width={16}
+                  referrerPolicy="no-referrer"
+                  className="h-auto w-4 shrink-0 rounded-[2px]"
+                  onError={(event) => { event.currentTarget.hidden = true; }}
+                />
+              ) : null}
+            </div>
             {typeof player.rating === "number" && Number.isFinite(player.rating) ? (
               <span className="bh-player-rating">({Math.round(player.rating)})</span>
             ) : null}
@@ -1414,6 +1570,15 @@ const BughouseAnalysis: React.FC<BughouseAnalysisProps> = ({
           />
           {options.isToMove ? <span className="sr-only">To move</span> : null}
         </div>
+        {playerEvalText ? (
+          <span
+            className={`bh-player-eval font-mono tabular-nums font-bold ${evalFavorsPlayer ? "text-emerald-300" : "text-red-400"}`}
+            title={`Position evaluation from ${options.evaluation?.side} perspective`}
+            aria-label={`Evaluation ${playerEvalText}, ${evalFavorsPlayer ? "favors" : "does not favor"} this player`}
+          >
+            {playerEvalText}
+          </span>
+        ) : <span aria-hidden="true" />}
         {shouldRenderClocks && typeof clockValue === "number" ? (
           <span
             className={[
@@ -1421,7 +1586,7 @@ const BughouseAnalysis: React.FC<BughouseAnalysisProps> = ({
               options.clocksFrozen
                 ? "bg-gray-950/40"
                 : "bg-transparent",
-              tint ?? neutralText,
+              getClockTextClass(clockValue),
             ].join(" ")}
           >
             {options.clocksFrozen ? (
@@ -1435,7 +1600,7 @@ const BughouseAnalysis: React.FC<BughouseAnalysisProps> = ({
       </div>
       );
     },
-    [boardSize, clockSnapshot, formatClock, isCompactLandscape, nameBlockHeight, shouldRenderClocks],
+    [boardSize, formatClock, isCompactLandscape, nameBlockHeight, shouldRenderClocks],
   );
 
   const getSideToMove = useCallback((fen: string): "white" | "black" => {
@@ -1501,8 +1666,18 @@ const BughouseAnalysis: React.FC<BughouseAnalysisProps> = ({
     setDragLegalMoveHighlight(null);
   }, []);
 
+  const [selectedPiece, setSelectedPiece] = useState<{
+    board: "A" | "B";
+    square: Square;
+  } | null>(null);
+
+  useEffect(() => {
+    setSelectedPiece(null);
+  }, [currentPosition.fenA, currentPosition.fenB, isLiveReplayPlaying, state.pendingDrop, state.pendingPromotion]);
+
   const handleAttemptMove = useCallback(
-    (payload: { board: "A" | "B"; from: Square; to: Square; piece: string }) => {
+    (payload: { board: "A" | "B"; from: Square; to: Square }) => {
+      setSelectedPiece(null);
       // The drag interaction ended (even if the move is rejected / snapback).
       setDragLegalMoveHighlight(null);
 
@@ -1545,6 +1720,69 @@ const BughouseAnalysis: React.FC<BughouseAnalysisProps> = ({
     [analytics, isLiveReplayPlaying, tryApplyMove],
   );
 
+  const renderEngineSuggestions = (board: BughouseBoardId) => {
+    const lines = engineLines?.[board];
+    return (
+      <div className="min-w-0" aria-label={`Board ${board} engine moves`}>
+        <h3 className="px-2 font-semibold">Board {board}</h3>
+        {(lines?.team.length ? lines.team : lines?.opponent ?? []).slice(0, engineMoveCount).map((line) => {
+          const preview = previewEngineMove(currentPosition, board, line.move);
+          if (!preview) return null;
+          const score = Number(line.score.replace(/^M/, ""));
+          return (
+            <button
+              key={line.rank}
+              type="button"
+              className="flex w-full justify-between gap-1 rounded px-2 text-left hover:bg-gray-700 disabled:opacity-50"
+              disabled={Boolean(state.pendingPromotion)}
+              onClick={() => {
+                if (state.pendingPromotion) return;
+                setSelectedPiece(null);
+                const result = tryApplyMove(preview.move);
+                if (result.type === "error") toast.error(result.message);
+              }}
+            >
+              <span>{line.rank}. {preview.san}</span>
+              <span className={score > 0 ? "text-green-400" : score < 0 ? "text-red-400" : "text-gray-400"}>
+                {line.score}
+              </span>
+            </button>
+          );
+        })}
+        {!isCursorOnMainline && lines?.supplies?.length ? (
+          <details className="mt-1 border-t border-gray-700 px-2">
+            <summary className="cursor-pointer text-amber-300">After a partner capture ({lines.supplies.length})</summary>
+            <p className="text-gray-400">Possible supplies if your partner captures now. Select a capture to explore it, then play the reply. The capture may have costs on their board.</p>
+            <div className="max-h-48 overflow-y-auto">
+              {lines.supplies.map(({ option, line }) => {
+                const capturePosition = option.captures[0].position;
+                const preview = previewEngineMove(capturePosition, board, line.move);
+                if (!preview) return null;
+                return (
+                  <div key={option.piece} className="my-1 rounded border border-gray-700 p-1">
+                    <p>With {option.piece.toUpperCase()} supplied: {preview.san} <span className="text-amber-300">{line.score}</span></p>
+                    {option.captures.map((capture) => (
+                      <button key={capture.san} type="button" className="block w-full rounded px-1 text-left hover:bg-gray-700 disabled:opacity-50"
+                        disabled={Boolean(state.pendingPromotion)}
+                        onClick={() => {
+                          if (state.pendingPromotion) return;
+                          setSelectedPiece(null);
+                          const result = tryApplyMove(capture.move);
+                          if (result.type === "error") toast.error(result.message);
+                        }}
+                      >Try {capture.move.board}: {capture.san} → supplies {option.piece.toUpperCase()}</button>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          </details>
+        ) : null}
+
+      </div>
+    );
+  };
+
   const handleSquareClick = useCallback(
     (payload: { board: "A" | "B"; square: Square }) => {
       if (isLiveReplayPlaying) {
@@ -1555,7 +1793,22 @@ const BughouseAnalysis: React.FC<BughouseAnalysisProps> = ({
         return;
       }
       const pending = state.pendingDrop;
-      if (!pending) return;
+      if (!pending) {
+        const fen = payload.board === "A" ? currentPosition.fenA : currentPosition.fenB;
+        const chess = new Chess(fen);
+        if (chess.get(payload.square)?.color === chess.turn()) {
+          setSelectedPiece(
+            selectedPiece?.board === payload.board && selectedPiece.square === payload.square
+              ? null
+              : payload,
+          );
+        } else if (selectedPiece?.board === payload.board) {
+          handleAttemptMove({ board: payload.board, from: selectedPiece.square, to: payload.square });
+        } else {
+          setSelectedPiece(null);
+        }
+        return;
+      }
       if (pending.board !== payload.board) {
         toast.error(`Selected drop is for board ${pending.board}.`);
         return;
@@ -1592,7 +1845,7 @@ const BughouseAnalysis: React.FC<BughouseAnalysisProps> = ({
 
       toast.error(result.message);
     },
-    [isLiveReplayPlaying, state.pendingDrop, state.pendingPromotion, tryApplyMove, analytics],
+    [isLiveReplayPlaying, state.pendingDrop, state.pendingPromotion, tryApplyMove, analytics, currentPosition.fenA, currentPosition.fenB, selectedPiece, handleAttemptMove],
   );
 
   const handleReservePieceDragStart = useCallback(
@@ -1848,7 +2101,15 @@ const BughouseAnalysis: React.FC<BughouseAnalysisProps> = ({
   const renderBoardColumn = useCallback(
     (boardId: BughouseBoardId, columnSide: "left" | "right") => {
       const boardConfig = getBoardDisplayConfig(boardId);
+      const lines = engineLines?.[boardId];
+      const evaluation = (lines?.team[0] ?? lines?.opponent[0])?.score;
+      const score = Number(evaluation?.replace(/^M/, ""));
+      const whiteShare = evaluation?.startsWith("M") && score !== 0
+        ? (score > 0 ? 100 : 0)
+        : Math.max(0, Math.min(100, 50 + score * 10));
       const boardPlayers = getPlayersForBoard(players, boardId);
+      const localTeam = isBoardsFlipped ? "ABlack_BWhite" : "AWhite_BBlack";
+      const opponentToMove = getTeamForBoardSide(boardId, boardConfig.sideToMove) !== localTeam;
       const cornerSide = columnSide === "left" ? "left" : "right";
       const topCorner = `top-${cornerSide}` as const;
       const bottomCorner = `bottom-${cornerSide}` as const;
@@ -1862,9 +2123,9 @@ const BughouseAnalysis: React.FC<BughouseAnalysisProps> = ({
           {renderPlayerBar(
             boardPlayers[boardConfig.topSide],
             boardConfig.clocks?.[boardConfig.topSide],
-            getTeamForBoardSide(boardId, boardConfig.topSide),
             {
               isToMove: boardConfig.sideToMove === boardConfig.topSide,
+              evaluation: evaluation ? { score: evaluation, side: boardConfig.topSide } : undefined,
               clocksFrozen: areClocksFrozen,
               cornerMaterial: {
                 value: boardConfig.captureMaterial[boardConfig.topSide],
@@ -1872,12 +2133,30 @@ const BughouseAnalysis: React.FC<BughouseAnalysisProps> = ({
               },
             },
           )}
+          <div className="relative" style={{ width: boardSize, height: boardSize }}>
+          {Number.isFinite(score) ? (
+            <div
+              role="img"
+              aria-label={`Board ${boardId} evaluation ${evaluation}`}
+              title={`Board ${boardId} evaluation ${evaluation}`}
+              className={`absolute inset-y-0 z-10 flex w-2 overflow-hidden rounded-sm border border-gray-500 bg-gray-950 left-full ${boardConfig.bottomSide === "white" ? "items-end" : "items-start"}`}
+            >
+              <div className="w-full bg-gray-100" style={{ height: `${whiteShare}%` }} />
+            </div>
+          ) : null}
           <ChessBoard
             fen={boardConfig.fen}
             boardName={boardId}
             size={boardSize}
             flip={boardConfig.flip}
             annotations={boardId === "A" ? boardAAnnotations : boardBAnnotations}
+            engineArrows={engineArrowsVisible ? [
+              ...(engineLines?.[boardId]?.team ?? []).map((line) => ({ line, perspective: "team" as const })),
+              ...(engineLines?.[boardId]?.opponent.slice(0, 1) ?? []).map((line) => ({ line, perspective: "opponent" as const })),
+            ].flatMap(({ line, perspective }) => {
+              const move = parseEngineMove(line.move);
+              return move ? [{ from: move.from as Square | null, to: move.to as Square, rank: line.rank, perspective }] : [];
+            }) : []}
             onAnnotationsChange={
               boardId === "A"
                 ? handleBoardAAnnotationsChange
@@ -1891,7 +2170,7 @@ const BughouseAnalysis: React.FC<BughouseAnalysisProps> = ({
               dragLegalMoveHighlight?.board === boardId &&
               dragLegalMoveHighlight.fenAtDragStart === boardConfig.fen
                 ? dragLegalMoveHighlight.from
-                : null
+                : selectedPiece?.board === boardId ? selectedPiece.square : null
             }
             dragLegalTargets={
               dragLegalMoveHighlight?.board === boardId &&
@@ -1907,12 +2186,23 @@ const BughouseAnalysis: React.FC<BughouseAnalysisProps> = ({
             onSquareClick={handleSquareClick}
             onAttemptReserveDrop={handleAttemptReserveDrop}
           />
+          <span
+            className={`pointer-events-none absolute left-1/2 z-20 h-6 w-6 rounded-full border ${boardConfig.sideToMove === "white" ? "border-black bg-white" : "border-white bg-black"}`}
+            style={{
+              top: opponentToMove ? -8 : undefined,
+              bottom: opponentToMove ? undefined : -8,
+              transform: opponentToMove ? "translate(-50%, -100%)" : "translate(-50%, 100%)",
+            }}
+            aria-label={`${boardConfig.sideToMove} ${opponentToMove ? "opponent" : "teammate"} to move on board ${boardId}`}
+            title={`${boardConfig.sideToMove} ${opponentToMove ? "opponent" : "teammate"} to move`}
+          />
+          </div>
           {renderPlayerBar(
             boardPlayers[boardConfig.bottomSide],
             boardConfig.clocks?.[boardConfig.bottomSide],
-            getTeamForBoardSide(boardId, boardConfig.bottomSide),
             {
               isToMove: boardConfig.sideToMove === boardConfig.bottomSide,
+              evaluation: evaluation ? { score: evaluation, side: boardConfig.bottomSide } : undefined,
               clocksFrozen: areClocksFrozen,
               cornerMaterial: {
                 value: boardConfig.captureMaterial[boardConfig.bottomSide],
@@ -1927,15 +2217,19 @@ const BughouseAnalysis: React.FC<BughouseAnalysisProps> = ({
       areClocksFrozen,
       boardAAnnotations,
       boardBAnnotations,
+      engineLines,
+      engineArrowsVisible,
       boardSize,
       getBoardDisplayConfig,
       getTeamForBoardSide,
+      isBoardsFlipped,
       handleBoardAAnnotationsChange,
       handleBoardBAnnotationsChange,
       handleDragEnd,
       handleDragStart,
       handleAttemptMove,
       handleAttemptReserveDrop,
+      selectedPiece,
       handleSquareClick,
       isLiveReplayPlaying,
       players,
@@ -2177,26 +2471,70 @@ const BughouseAnalysis: React.FC<BughouseAnalysisProps> = ({
              fullscreen viewport so the available space goes entirely to the two boards. */
           <div
             data-testid="analysis-move-list-panel"
-            className="bh-move-panel"
+            className="bh-move-panel flex flex-col"
           >
-            <MoveListWithVariations
-              tree={state.tree}
-              cursorNodeId={state.cursorNodeId}
-              selectedNodeId={state.selectedNodeId}
-              players={players}
-              isBoardOrderSwapped={isBoardOrderSwapped}
-              onToggleBoardOrder={handleToggleBoardOrder}
-              combinedMoves={combinedMovesForMoveTimes}
-              combinedMoveDurations={combinedMoveDurationsForMoveTimes}
-              footer={moveListFooter}
-              disabled={isLiveReplayPlaying}
-              onSelectNode={selectNode}
-              onPromoteVariationOneLevel={promoteVariationOneLevel}
-              onTruncateAfterNode={truncateAfterNode}
-              onTruncateFromNodeInclusive={truncateFromNodeInclusive}
-              onShareGameFromNode={handleShareGameFromNode}
-              canShareGameFromNode={canShareGameFromNode}
-            />
+            <section className="flex w-full shrink-0 flex-wrap items-center justify-end gap-x-4 gap-y-1 px-2 py-1 text-sm text-gray-100" aria-label="Fairy-Stockfish analysis controls">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={engineEnabled}
+                onClick={() => setEngineEnabled((enabled) => !enabled)}
+                className="inline-flex items-center gap-2 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
+              >
+                <span>Fairy Stockfish</span>
+                <span
+                  aria-hidden="true"
+                  className={`relative h-5 w-9 rounded-full transition-colors ${engineEnabled ? "bg-green-600" : "bg-gray-600"}`}
+                >
+                  <span
+                    className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white transition-transform ${engineEnabled ? "translate-x-4" : ""}`}
+                  />
+                </span>
+              </button>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={engineArrowsVisible}
+                onClick={() => setEngineArrowsVisible((visible) => !visible)}
+                className="inline-flex items-center gap-2 rounded px-1 py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mariner-400/60"
+              >
+                <span>Engine arrows</span>
+                <span aria-hidden="true" className={`relative h-5 w-9 rounded-full transition-colors ${engineArrowsVisible ? "bg-green-600" : "bg-gray-600"}`}>
+                  <span className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white transition-transform ${engineArrowsVisible ? "translate-x-4" : ""}`} />
+                </span>
+              </button>
+              <span className="sr-only" role="status">{engineStatus}</span>
+            </section>
+            {engineEnabled ? (
+              <section
+                aria-label="Top engine moves"
+                className="grid shrink-0 grid-cols-2 gap-1 rounded-t-md border border-gray-700 bg-gray-900 p-1 text-xs leading-5"
+                style={{ minHeight: (engineMoveCount + 1) * 20 + 10 }}
+              >
+                {renderEngineSuggestions(leftBoardId)}
+                {renderEngineSuggestions(rightBoardId)}
+              </section>
+            ) : null}
+            <div className="min-h-0 flex-1">
+              <MoveListWithVariations
+                tree={state.tree}
+                cursorNodeId={state.cursorNodeId}
+                selectedNodeId={state.selectedNodeId}
+                players={players}
+                isBoardOrderSwapped={isBoardOrderSwapped}
+                onToggleBoardOrder={handleToggleBoardOrder}
+                combinedMoves={combinedMovesForMoveTimes}
+                combinedMoveDurations={combinedMoveDurationsForMoveTimes}
+                footer={moveListFooter}
+                disabled={isLiveReplayPlaying}
+                onSelectNode={selectNode}
+                onPromoteVariationOneLevel={promoteVariationOneLevel}
+                onTruncateAfterNode={truncateAfterNode}
+                onTruncateFromNodeInclusive={truncateFromNodeInclusive}
+                onShareGameFromNode={handleShareGameFromNode}
+                canShareGameFromNode={canShareGameFromNode}
+              />
+            </div>
           </div>
         ) : null}
       </div>

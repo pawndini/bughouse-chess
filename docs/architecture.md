@@ -1,6 +1,6 @@
 # Architecture and domain contracts
 
-Relay is a Next.js App Router application. The two-board viewer, opening explorer,
+Bug Bully is a Next.js App Router application. The two-board viewer, opening explorer,
 and Player Insights have separate state models. Shared presentation does not imply
 shared navigation or game state.
 

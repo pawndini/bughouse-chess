@@ -66,9 +66,9 @@ body {
 }
 
 .bh-promoted-square--white::after {
-  background: #111827;
+  background: #111111;
   color: #f9fafb;
-  border: 1px solid #111827;
+  border: 1px solid #111111;
 }
 
 .bh-promoted-square--black::after {
@@ -79,7 +79,7 @@ body {
 
 /* Board square highlight when dragging reserve piece over it */
 .bh-drop-hover-square {
-  box-shadow: inset 0 0 0 3px rgba(56, 189, 248, 0.85); /* cyan-ish */
+  box-shadow: inset 0 0 0 3px rgba(190, 190, 190, 0.85);
 }
 
 /* Legal-move highlights while dragging a piece on the board */
@@ -106,11 +106,11 @@ body {
 
 /* Last-move highlight (persistent, even when not dragging) */
 .bh-last-move-from-square {
-  box-shadow: inset 0 0 0 2px rgba(14, 165, 233, 0.55); /* dark sky */
+  box-shadow: inset 0 0 0 2px rgba(180, 180, 180, 0.55);
 }
 
 .bh-last-move-to-square {
-  box-shadow: inset 0 0 0 2px rgba(14, 165, 233, 0.9); /* strong dark sky */
+  box-shadow: inset 0 0 0 2px rgba(205, 205, 205, 0.9);
 }
 
 /* When a reserve piece is armed for placement, show pointer across squares */
@@ -171,6 +171,17 @@ body {
   overflow: hidden;
 }
 
+/* Purple and lavender palette from the reference chessboard. */
+.white-1e1d7 {
+  background-color: #a394b2 !important;
+  color: #804b8d !important;
+}
+
+.black-3c85d {
+  background-color: #804b8d !important;
+  color: #a394b2 !important;
+}
+
 /* -------------------------------------------------------------------------- */
 /* Custom thin scrollbar styles                                                */
 /* -------------------------------------------------------------------------- */
@@ -181,7 +192,7 @@ body {
 .scrollbar-thin {
   /* Firefox */
   scrollbar-width: thin;
-  scrollbar-color: #4b5563 #1f2937;
+  scrollbar-color: #555555 #242424;
 }
 
 /* WebKit browsers (Chrome, Safari, Edge) */
@@ -191,17 +202,17 @@ body {
 }
 
 .scrollbar-thin::-webkit-scrollbar-track {
-  background: #1f2937;
+  background: #242424;
   border-radius: 3px;
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  background: #4b5563;
+  background: #555555;
   border-radius: 3px;
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background: #6b7280;
+  background: #737373;
 }
 
 /* Viewer layout: container width controls arrangement; JS measures it for chessboard.js. */
@@ -234,17 +245,18 @@ body {
 .bh-board-column { display: flex; flex-direction: column; align-items: center; padding-block: 8px; height: var(--bh-play-area-height); }
 .bh-reserve-column { width: var(--bh-reserve-width); height: var(--bh-play-area-height); }
 .bh-move-panel { flex: 1 0 180px; min-height: 160px; height: 260px; overflow: hidden; min-width: 0; }
-.bh-player-bar { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 6px; padding-inline: 6px; flex-shrink: 0; font-weight: 700; font-size: var(--bh-player-font); }
+.bh-player-bar { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 6px; padding-inline: 6px; flex-shrink: 0; font-weight: 700; font-size: var(--bh-player-font); }
 .bh-player-identity { display: flex; align-items: center; min-width: 0; gap: 2px; }
 .bh-player-details { display: flex; align-items: center; min-width: 0; gap: 5px; }
+.bh-player-name-row { display: flex; align-items: center; min-width: 0; gap: 4px; }
 .bh-player-name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; min-width: 0; }
-.bh-player-name:focus { outline: 1px solid #7dd3fc; outline-offset: 2px; }
+.bh-player-name:focus { outline: 1px solid #c2c2c2; outline-offset: 2px; }
 .bh-player-rating { flex-shrink: 0; font-size: 11px; font-weight: 600; color: rgb(255 255 255 / .6); }
 .bh-player-clock { white-space: nowrap; font-size: clamp(12px, var(--bh-player-font), 18px); padding: 2px; }
-.bh-player-bar[data-compact="true"] .bh-player-details { display: grid; grid-template-columns: auto minmax(0, 1fr); width: 100%; gap: 1px 4px; }
-.bh-player-bar[data-compact="true"] .bh-player-name { grid-column: 2; grid-row: 1; }
-.bh-player-bar[data-compact="true"] .bh-player-rating { grid-column: 1 / -1; grid-row: 2; }
-.bh-board-panel[data-fullscreen="true"] { --bh-side-list: 0; width: 100%; height: 100%; justify-content: center; overflow: hidden; padding: 16px; background: #111827; }
+.bh-player-eval { white-space: nowrap; font-size: clamp(10px, calc(var(--bh-player-font) * .82), 14px); }
+.bh-player-bar[data-compact="true"] .bh-player-details { flex-direction: column; align-items: flex-start; width: 100%; gap: 1px; }
+.bh-player-bar[data-compact="true"] .bh-player-name-row { max-width: 100%; }
+.bh-board-panel[data-fullscreen="true"] { --bh-side-list: 0; width: 100%; height: 100%; justify-content: center; overflow: hidden; padding: 16px; background: #111111; }
 @container (min-width: 1100px) {
   .bh-workspace { --bh-side-list: 1; display: grid; grid-template-columns: minmax(0, 1fr) clamp(260px, 23cqw, 360px); align-content: center; align-items: start; }
   .bh-move-panel { height: var(--bh-play-area-height); }

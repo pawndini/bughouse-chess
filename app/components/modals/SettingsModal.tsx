@@ -390,13 +390,13 @@ export default function SettingsModal({
               styles={{
                 default: {
                   card: {
-                    background: "#364153",
+                    background: "#3f3f3f",
                     boxShadow: "none",
                   },
                   input: {
-                    background: "#1f2937",
+                    background: "#242424",
                     color: "#f3f4f6",
-                    borderColor: "#374151",
+                    borderColor: "#444444",
                   },
                 },
               }}
@@ -466,7 +466,7 @@ export default function SettingsModal({
           <div className="flex items-center justify-end gap-2">
             <button
               type="button"
-              className="rounded-md border border-gray-700 bg-gray-800 px-2.5 py-1 text-xs text-gray-100 hover:bg-gray-700/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/50 disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-md border border-gray-700 bg-gray-800 px-2.5 py-1 text-xs text-gray-100 hover:bg-gray-700/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/50 disabled:cursor-not-allowed disabled:opacity-50"
               onClick={handleCancel}
               disabled={isSaving}
             >

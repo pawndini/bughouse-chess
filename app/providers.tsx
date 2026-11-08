@@ -70,22 +70,22 @@ export default function Providers({
           className: "text-base",
           duration: 4500,
           style: {
-            background: "#1f2937",
+            background: "#242424",
             color: "#e5e7eb",
-            border: "1px solid #374151",
+            border: "1px solid #444444",
           },
           success: {
             duration: 4000,
             iconTheme: {
               primary: "#34d399",
-              secondary: "#0f172a",
+              secondary: "#171717",
             },
           },
           error: {
             duration: 5500,
             iconTheme: {
               primary: "#f87171",
-              secondary: "#0f172a",
+              secondary: "#171717",
             },
           },
         }}
@@ -95,9 +95,9 @@ export default function Providers({
         place="top"
         offset={10}
         delayShow={150}
-        border={"1px solid #374151"}
+        border={"1px solid #444444"}
         style={{
-          background: "#111827",
+          background: "#171717",
           color: "#f3f4f6",
           borderRadius: 8,
           padding: "6px 8px",

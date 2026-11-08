@@ -24,20 +24,20 @@ export function GET(request: Request): Response {
 
   const manifest: MetadataRoute.Manifest & { orientation?: "any" | "natural" | "landscape" | "portrait" } =
     {
-      name: "Relay - Bughouse Chess Analysis Tool",
-      short_name: "Relay",
+      name: "Bug Bully - Bughouse Chess Analysis Tool",
+      short_name: "Bug Bully",
       start_url: "/",
       display: "standalone",
-      background_color: "#ffffff",
-      theme_color: "#ffffff",
+      background_color: "#111111",
+      theme_color: "#111111",
       icons: [
         {
-          src: "/android-chrome-192x192.png",
+          src: "/android-chrome-192x192.png?v=bug-bully-red-pawn",
           sizes: "192x192",
           type: "image/png",
         },
         {
-          src: "/android-chrome-512x512.png",
+          src: "/android-chrome-512x512.png?v=bug-bully-red-pawn",
           sizes: "512x512",
           type: "image/png",
         },

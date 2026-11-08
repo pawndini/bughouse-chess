@@ -7,6 +7,17 @@ import "server-only";
 
 import admin from "firebase-admin";
 
+/** Whether server-side sharing has credentials or a demo emulator configured. */
+export function isAdminFirestoreConfigured(): boolean {
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+  return Boolean(
+    projectId && (
+      (process.env.FIRESTORE_EMULATOR_HOST && projectId.startsWith("demo-")) ||
+      (process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY)
+    ),
+  );
+}
+
 /**
  * Returns a Firestore instance configured via Firebase Admin SDK.
  *

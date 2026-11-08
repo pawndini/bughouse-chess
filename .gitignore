@@ -20,6 +20,11 @@
 
 # production
 /build
+/dist
+/.desktop-stage
+/.desktop-local-appdata
+/.desktop-tmp
+/.electron-cache
 
 # misc
 .DS_Store

@@ -17,7 +17,7 @@ import { processGameData } from "../../utils/board/moveOrdering";
 import { BughouseReplayController } from "../../utils/replay/replayController";
 import { BughouseGameState, BughousePlayer } from "../../types/bughouse";
 import { ChessGame } from "../../actions";
-import { getClockTintClasses, getTeamTimeDiffDeciseconds } from "../../utils/board/clockAdvantage";
+import { getClockTextClass } from "../../utils/board/clockDisplay";
 import { ChessTitleBadge } from "../badges/ChessTitleBadge";
 import type { BoardAnnotations } from "../../utils/board/boardAnnotations";
 import {
@@ -295,14 +295,8 @@ const BughouseReplay: React.FC<BughouseReplayProps> = ({ gameData }) => {
     (
       player: BughousePlayer,
       clockValue: number | undefined,
-      team: "AWhite_BBlack" | "ABlack_BWhite",
       cornerMaterial?: { value: number; corner: "top-left" | "top-right" | "bottom-left" | "bottom-right" },
     ) => {
-      const diffDeciseconds =
-        gameState ? getTeamTimeDiffDeciseconds({ A: gameState.boardA.clocks, B: gameState.boardB.clocks }) : 0;
-      const tint = getClockTintClasses({ diffDeciseconds, team });
-      const neutral = "text-white/90";
-
       /**
        * Keep replay headers readable on smaller tablet landscape widths (e.g. iPad Mini) by
        * tightening spacing earlier based on the computed `boardSize`.
@@ -359,7 +353,7 @@ const BughouseReplay: React.FC<BughouseReplayProps> = ({ gameData }) => {
         <span
           className={[
             "font-mono text-base lg:text-lg tabular-nums rounded px-2 py-0.5 transition-colors",
-            tint ?? neutral,
+            getClockTextClass(clockValue),
           ].join(" ")}
         >
           {formatClock(clockValue)}
@@ -367,7 +361,7 @@ const BughouseReplay: React.FC<BughouseReplayProps> = ({ gameData }) => {
       </div>
       );
     },
-    [boardSize, formatClock, formatElo, gameState],
+    [boardSize, formatClock, formatElo],
   );
 
   return (
@@ -407,11 +401,11 @@ const BughouseReplay: React.FC<BughouseReplayProps> = ({ gameData }) => {
             {/* Board A - White at bottom */}
             <div className="flex flex-col items-center justify-between h-full py-2 gap-2">
               {isBoardsFlipped
-                ? renderPlayerBar(gameState.players.aWhite, gameState.boardA.clocks.white, "AWhite_BBlack", {
+                ? renderPlayerBar(gameState.players.aWhite, gameState.boardA.clocks.white, {
                     value: captureMaterial.A[topSideA],
                     corner: "top-left",
                   })
-                : renderPlayerBar(gameState.players.aBlack, gameState.boardA.clocks.black, "ABlack_BWhite", {
+                : renderPlayerBar(gameState.players.aBlack, gameState.boardA.clocks.black, {
                     value: captureMaterial.A[topSideA],
                     corner: "top-left",
                   })}
@@ -431,11 +425,11 @@ const BughouseReplay: React.FC<BughouseReplayProps> = ({ gameData }) => {
                 }
               />
               {isBoardsFlipped
-                ? renderPlayerBar(gameState.players.aBlack, gameState.boardA.clocks.black, "ABlack_BWhite", {
+                ? renderPlayerBar(gameState.players.aBlack, gameState.boardA.clocks.black, {
                     value: captureMaterial.A[bottomSideA],
                     corner: "bottom-left",
                   })
-                : renderPlayerBar(gameState.players.aWhite, gameState.boardA.clocks.white, "AWhite_BBlack", {
+                : renderPlayerBar(gameState.players.aWhite, gameState.boardA.clocks.white, {
                     value: captureMaterial.A[bottomSideA],
                     corner: "bottom-left",
                   })}
@@ -444,11 +438,11 @@ const BughouseReplay: React.FC<BughouseReplayProps> = ({ gameData }) => {
             {/* Board B - Black at bottom (flipped) */}
             <div className="flex flex-col items-center justify-between h-full py-2 gap-2">
               {isBoardsFlipped
-                ? renderPlayerBar(gameState.players.bBlack, gameState.boardB.clocks.black, "AWhite_BBlack", {
+                ? renderPlayerBar(gameState.players.bBlack, gameState.boardB.clocks.black, {
                     value: captureMaterial.B[topSideB],
                     corner: "top-right",
                   })
-                : renderPlayerBar(gameState.players.bWhite, gameState.boardB.clocks.white, "ABlack_BWhite", {
+                : renderPlayerBar(gameState.players.bWhite, gameState.boardB.clocks.white, {
                     value: captureMaterial.B[topSideB],
                     corner: "top-right",
                   })}
@@ -468,11 +462,11 @@ const BughouseReplay: React.FC<BughouseReplayProps> = ({ gameData }) => {
                 }
               />
               {isBoardsFlipped
-                ? renderPlayerBar(gameState.players.bWhite, gameState.boardB.clocks.white, "ABlack_BWhite", {
+                ? renderPlayerBar(gameState.players.bWhite, gameState.boardB.clocks.white, {
                     value: captureMaterial.B[bottomSideB],
                     corner: "bottom-right",
                   })
-                : renderPlayerBar(gameState.players.bBlack, gameState.boardB.clocks.black, "AWhite_BBlack", {
+                : renderPlayerBar(gameState.players.bBlack, gameState.boardB.clocks.black, {
                     value: captureMaterial.B[bottomSideB],
                     corner: "bottom-right",
                   })}

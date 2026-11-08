@@ -86,10 +86,10 @@ function GameCard({
         href={buildBughouseAnalysisUrl(game.url)}
         target="_blank"
         rel="noreferrer noopener"
-        aria-label={`Open #${rank} in Relay for ${playerName}`}
+        aria-label={`Open #${rank} in Bug Bully for ${playerName}`}
         className="mt-2 inline-flex min-h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-slate-700 text-[10px] font-medium text-slate-300 transition-colors hover:border-mariner-500/70 hover:text-mariner-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mariner-400/70"
       >
-        Open in Relay
+        Open in Bug Bully
         <ExternalLink className="h-3 w-3" aria-hidden="true" />
       </a>
     </div>

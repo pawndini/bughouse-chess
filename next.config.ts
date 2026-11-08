@@ -8,6 +8,19 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
+  output: "standalone",
+  experimental: { cpus: 1 },
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+          { key: "Cross-Origin-Embedder-Policy", value: "credentialless" },
+        ],
+      },
+    ];
+  },
   outputFileTracingIncludes: {
     "/api/social-preview": ["./public/preview-pieces/*.png", "./public/og-image.png"],
   },

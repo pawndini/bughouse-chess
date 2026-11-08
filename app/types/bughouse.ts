@@ -69,6 +69,8 @@ export interface BughousePlayer {
    * Chess.com username as shown in the live game payload.
    */
   username: string;
+  avatarUrl?: string;
+  countryName?: string;
   /**
    * Player rating (ELO) as returned by the live game payload.
    * Optional to keep the UI resilient when data is missing (e.g. partner game not found).

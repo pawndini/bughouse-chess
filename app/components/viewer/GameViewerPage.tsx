@@ -6,6 +6,7 @@
  * Top-level game viewer shell: URL/query loading, match discovery, share flows,
  * orientation session store, and the {@link BughouseAnalysis} workspace.
  */
+import PlayerGameBrowser from "./PlayerGameBrowser";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -55,6 +56,7 @@ import { usePhonePortraitLandscapeHint } from "../../utils/platform/usePhonePort
 import type { PairKey } from "../../utils/board/matchBoardOrientation";
 import {
   computeBaseFlip,
+  computePlayerPerspectiveFlip,
   computeEffectiveFlip,
   getBottomPairKeyForGame,
 } from "../../utils/board/matchBoardOrientation";
@@ -65,6 +67,7 @@ import type { SharedContentType, SingleGameData } from "../../types/sharedGame";
 import { fromMatchGameData } from "../../types/sharedGame";
 import { getSharedGame, reconstructPartnerPairFromMetadata } from "../../utils/shared-games/sharedGamesService";
 import { getShareEligibility } from "../../utils/shared-games/shareEligibility";
+import { getOfflineGamePair, saveOfflineGamePair } from "../../utils/offlineGameStore";
 import { useSharedGameHashes } from "../../utils/shared-games/sharedGameHashesStore";
 import { ViewerOrientationStore, ViewerOrientationStoreProvider } from "../../stores/viewerOrientationStore";
 import ViewerLandscapeHint from "./ViewerLandscapeHint";
@@ -130,6 +133,8 @@ type PendingLoadGameRequest = {
   sanitizedId: string;
   clearInput: boolean;
   existingLabel: string;
+  perspectiveUsername?: string;
+  urlPlyForSync: number | null;
 };
 
 /**
@@ -440,6 +445,18 @@ export default function GameViewerPage() {
     }
   }, [autoLoadGameId, router, sharedId]);
 
+  useEffect(() => {
+    if (!loadedGameId) return;
+    const onSavedGameDeleted = (event: Event) => {
+      const deleted = (event as CustomEvent<{ id: string; partnerId: string | null }>).detail;
+      if (deleted?.id === loadedGameId || deleted?.partnerId === loadedGameId) {
+        resetViewerState();
+      }
+    };
+    window.addEventListener("relay:saved-game-deleted", onSavedGameDeleted);
+    return () => window.removeEventListener("relay:saved-game-deleted", onSavedGameDeleted);
+  }, [loadedGameId, resetViewerState]);
+
   const handleLogoClick = useCallback(
     (event: React.MouseEvent<HTMLAnchorElement>) => {
       if (!hasLoadedGame) {
@@ -453,7 +470,7 @@ export default function GameViewerPage() {
   );
 
   const performLoadGame = useCallback(
-    (trimmedId: string, clearInput: boolean, urlPlyForSync: number | null = null) => {
+    (trimmedId: string, clearInput: boolean, urlPlyForSync: number | null = null, perspectiveUsername?: string) => {
       startTransition(() => {
         const prefetchedReadyForId =
           prefetched.status === "ready" && prefetched.sanitizedId === trimmedId
@@ -463,7 +480,14 @@ export default function GameViewerPage() {
         const loadPromise = prefetchedReadyForId
           ? Promise.resolve(prefetchedReadyForId)
           : (async () => {
-              const originalGame = await fetchChessGame(trimmedId);
+              const cachedPair = await getOfflineGamePair(trimmedId).catch(() => null);
+              let originalGame: ChessGame | null = null;
+              try {
+                originalGame = await fetchChessGame(trimmedId);
+              } catch {
+                originalGame = null;
+              }
+              originalGame ??= cachedPair?.original ?? null;
               if (!originalGame) {
                 // Throw on the client (not from the server action) to avoid opaque Next.js
                 // server-component errors surfacing in toasts.
@@ -476,8 +500,16 @@ export default function GameViewerPage() {
               }
 
               const partnerId = originalGame.game.partnerGameId?.toString()
-                ?? await findPartnerGameId(trimmedId);
-              const partnerGame = partnerId ? await fetchChessGame(partnerId) : null;
+                ?? cachedPair?.partnerId
+                ?? await findPartnerGameId(trimmedId).catch(() => null);
+              let partnerGame = cachedPair?.partner ?? null;
+              if (!partnerGame && partnerId) {
+                try {
+                  partnerGame = await fetchChessGame(partnerId);
+                } catch {
+                  partnerGame = (await getOfflineGamePair(partnerId).catch(() => null))?.original ?? null;
+                }
+              }
 
               return {
                 original: originalGame,
@@ -499,6 +531,9 @@ export default function GameViewerPage() {
 
         loadPromise
           .then((data) => {
+            void saveOfflineGamePair({ ...data, perspectiveUsername })
+              .then(() => toast.success("Game saved on this computer for offline access."))
+              .catch(() => undefined);
             // Log analytics for successful game load
             logAnalyticsEvent(analytics, "game_loaded_success", {
               game_id: trimmedId,
@@ -532,7 +567,7 @@ export default function GameViewerPage() {
             setSelectedPairForDisplay(null);
             setBaselineBottomPairKey(null);
             setUserFlipPreference(false);
-            setStandaloneBoardsFlipped(false);
+            setStandaloneBoardsFlipped(computePlayerPerspectiveFlip(data, perspectiveUsername) ?? false);
             syncUrlForLoadedGame({
               action: "newGameLoad",
               gameId: trimmedId,
@@ -567,9 +602,10 @@ export default function GameViewerPage() {
         skipConfirm?: boolean;
         clearInput?: boolean;
         urlPlyForSync?: number | null;
+        perspectiveUsername?: string;
       } = {},
     ) => {
-      const { skipConfirm = false, clearInput = true, urlPlyForSync = null } = options;
+      const { skipConfirm = false, clearInput = true, urlPlyForSync = null, perspectiveUsername } = options;
       const trimmedId = sanitizeChessComGameIdInput(requestedGameId);
 
       if (!trimmedId) {
@@ -595,14 +631,29 @@ export default function GameViewerPage() {
       })();
 
       if (!skipConfirm && (analysisIsDirty || loadedGameId) && !userHasOptedOut) {
-        setPendingLoadRequest({ sanitizedId: trimmedId, clearInput, existingLabel });
+        setPendingLoadRequest({ sanitizedId: trimmedId, clearInput, existingLabel, perspectiveUsername, urlPlyForSync });
         return;
       }
 
-      performLoadGame(trimmedId, clearInput, urlPlyForSync);
+      performLoadGame(trimmedId, clearInput, urlPlyForSync, perspectiveUsername);
     },
     [analysisIsDirty, loadedGameId, performLoadGame],
   );
+
+  useEffect(() => {
+    const openSavedGame = (event: Event) => {
+      const detail = (event as CustomEvent<unknown>).detail;
+      const id = typeof detail === "string" ? detail
+        : detail && typeof detail === "object" && "id" in detail ? detail.id : null;
+      if (typeof id !== "string") return;
+      const perspectiveUsername = detail && typeof detail === "object" && "perspectiveUsername" in detail && typeof detail.perspectiveUsername === "string"
+        ? detail.perspectiveUsername : undefined;
+      event.preventDefault();
+      void loadGame(id, { perspectiveUsername });
+    };
+    window.addEventListener("relay:open-saved-game", openSavedGame);
+    return () => window.removeEventListener("relay:open-saved-game", openSavedGame);
+  }, [loadGame]);
 
   const handleConfirmLoadNewGame = useCallback(
     ({ dontShowAgain }: { dontShowAgain: boolean }) => {
@@ -618,7 +669,7 @@ export default function GameViewerPage() {
       }
 
       setPendingLoadRequest(null);
-      performLoadGame(req.sanitizedId, req.clearInput);
+      performLoadGame(req.sanitizedId, req.clearInput, req.urlPlyForSync, req.perspectiveUsername);
     },
     [pendingLoadRequest, performLoadGame],
   );
@@ -1455,8 +1506,9 @@ export default function GameViewerPage() {
               onClick={handleLogoClick}
             >
               <Image
-                src="/logo.png"
-                alt="Bughouse Chess logo"
+                src="/logo.png?v=bug-bully-red-pawn"
+                unoptimized
+                alt="Bug Bully logo"
                 width={40}
                 height={40}
                 priority
@@ -1506,6 +1558,8 @@ export default function GameViewerPage() {
 
             </div>
           </form>
+
+          <PlayerGameBrowser onLoad={(id, perspectiveUsername) => { void loadGame(id, { perspectiveUsername }); }} />
 
           {/* Match Navigation and Game ID section */}
           <div

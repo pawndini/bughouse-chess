@@ -134,8 +134,8 @@ const DropBoard = memo(function DropBoard({
           const alpha = count === 0 ? 0 : 0.24 + relativeIntensity * 0.7;
           const checkerTone = (
             (Math.floor(boardIndex / 8) + (boardIndex % 8)) % 2 === 0
-              ? "#1e293b"
-              : "#0f172a"
+              ? "#2b2b2b"
+              : "#111111"
           );
           const percentage = formatPercent(probability);
           const dropLabel = `${integerFormatter.format(count)} ${count === 1 ? "drop" : "drops"}`;
@@ -146,7 +146,7 @@ const DropBoard = memo(function DropBoard({
               role="gridcell"
               aria-label={label}
               title={label}
-              className="grid aspect-square place-content-center overflow-hidden font-mono text-[7px] font-semibold leading-[0.95] tabular-nums text-white [text-shadow:0_1px_2px_rgb(2_6_23)] sm:text-[8px]"
+              className="grid aspect-square place-content-center overflow-hidden font-mono text-[7px] font-semibold leading-[0.95] tabular-nums text-white [text-shadow:0_1px_2px_rgb(17_17_17)] sm:text-[8px]"
               style={{
                 background: count === 0
                   ? checkerTone

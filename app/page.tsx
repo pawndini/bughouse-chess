@@ -24,14 +24,14 @@ export async function generateMetadata({ searchParams }: {
   if (!params) return {};
   const url = `/?${params}`;
   const image = `/api/social-preview?${params}`;
-  const title = "Bughouse game | Relay";
+  const title = "Bughouse game | Bug Bully";
   const description = params.has("ply")
-    ? "Explore this position on both bughouse boards in Relay."
-    : "Replay this bughouse game or match in Relay.";
+    ? "Explore this position on both bughouse boards in Bug Bully."
+    : "Replay this bughouse game or match in Bug Bully.";
   return {
     alternates: { canonical: url },
     openGraph: {
-      type: "website", siteName: "Relay", title, description, url,
+      type: "website", siteName: "Bug Bully", title, description, url,
       images: [{ url: image, width: 1200, height: 630, type: "image/png", alt: "Two bughouse boards at the shared position" }],
     },
     twitter: { card: "summary_large_image", title, description, images: [image] },

@@ -64,7 +64,7 @@ const fixture: MaterialGameHighsData = {
 };
 
 describe("Material Game Highs insight", () => {
-  it("shows three final positions, Relay links, and signed direction ranking", () => {
+  it("shows three final positions, Bug Bully links, and signed direction ranking", () => {
     render(<MaterialGameHighsInsight data={fixture} preset="bughouse" />);
 
     expect(screen.getByRole("heading", { name: "Material Game Highs" })).toBeInTheDocument();
@@ -84,11 +84,11 @@ describe("Material Game Highs insight", () => {
     expect(within(alice).getAllByRole("img", { name: /final position/i })).toHaveLength(3);
     expect(alice.querySelector('[data-piece="wK"]')).not.toBeNull();
     expect(within(alice).getByText("+10")).toBeInTheDocument();
-    expect(within(alice).getByRole("link", { name: /Open #1 in Relay/i })).toHaveAttribute(
+    expect(within(alice).getByRole("link", { name: /Open #1 in Bug Bully/i })).toHaveAttribute(
       "href",
       "https://bughouse.aronteh.com/?gameId=111",
     );
-    expect(within(alice).getByRole("link", { name: /Open #1 in Relay/i })).toHaveAttribute(
+    expect(within(alice).getByRole("link", { name: /Open #1 in Bug Bully/i })).toHaveAttribute(
       "target",
       "_blank",
     );

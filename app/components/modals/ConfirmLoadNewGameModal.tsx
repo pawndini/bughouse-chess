@@ -116,7 +116,7 @@ export default function ConfirmLoadNewGameModal({
           <div className="mt-5 flex items-center justify-end gap-2">
             <button
               type="button"
-              className="rounded-md border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-100 hover:bg-gray-700/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/50"
+              className="rounded-md border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-100 hover:bg-gray-700/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/50"
               onClick={handleCancel}
             >
               Cancel

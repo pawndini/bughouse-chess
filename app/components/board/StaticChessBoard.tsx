@@ -102,7 +102,7 @@ function StaticChessBoard({
           >
             {code ? (
               <Image
-                src={`https://chessboardjs.com/img/chesspieces/wikipedia/${code}.png`}
+                src={`/pieces/${code}.png`}
                 alt=""
                 aria-hidden="true"
                 data-piece={code}

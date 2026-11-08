@@ -9,6 +9,7 @@ import {
   GoogleAuthProvider,
   onAuthStateChanged,
   signInWithPopup,
+  signInWithRedirect,
   signOut as firebaseSignOut,
   type User,
 } from "firebase/auth";
@@ -53,6 +54,14 @@ export function getFirebaseAuthAdapter(): AuthAdapter {
         cb(user ? toAuthUser(user) : null);
       }),
     signInWithGooglePopup: async () => {
+      // The local Fairy-Stockfish WASM runtime enables cross-origin isolation.
+      // COOP intentionally separates cross-site popups, so use Firebase's
+      // redirect flow in that case; the auth-state subscription resumes after
+      // Firebase returns to Bug Bully.
+      if (typeof window !== "undefined" && window.crossOriginIsolated) {
+        await signInWithRedirect(auth, provider);
+        return undefined;
+      }
       const result = await signInWithPopup(auth, provider);
       return toAuthUser(result.user);
     },

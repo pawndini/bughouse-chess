@@ -9,6 +9,7 @@ import type { ChessGame } from "@/app/actions";
 import type { PairKey } from "@/app/utils/board/matchBoardOrientation";
 import {
   computeBaseFlip,
+  computePlayerPerspectiveFlip,
   computeEffectiveFlip,
   getBottomPairKeyForGame,
 } from "@/app/utils/board/matchBoardOrientation";
@@ -170,5 +171,26 @@ describe("matchBoardOrientation", () => {
       effectiveFlip: false,
     });
     expect(bottom).toBeNull();
+  });
+});
+
+describe("searched player perspective", () => {
+  const data = makeGameData({ aWhite: "Alice", aBlack: "Bob", bWhite: "Carol", bBlack: "Dave" });
+  it.each([["Alice", false], ["Bob", true], ["Carol", true], ["Dave", false]] as const)("puts %s and their partner at the bottom", (username, expected) => {
+    const flip = computePlayerPerspectiveFlip(data, username);
+    expect(flip).toBe(expected);
+    expect(getBottomPairKeyForGame({ gameData: data, effectiveFlip: flip! })).toContain(username.toLowerCase());
+  });
+  it("matches usernames without case or surrounding whitespace", () => {
+    expect(computePlayerPerspectiveFlip(data, "  bOB  ")).toBe(true);
+  });
+  it("falls back for an unknown or missing username", () => {
+    expect(computePlayerPerspectiveFlip(data, "Nobody")).toBeNull();
+    expect(computePlayerPerspectiveFlip(data)).toBeNull();
+  });
+  it("works without a partner board and recalculates for color swaps", () => {
+    expect(computePlayerPerspectiveFlip({ original: data.original, partner: null }, "Bob")).toBe(true);
+    const swapped = makeGameData({ aWhite: "Bob", aBlack: "Alice", bWhite: "Dave", bBlack: "Carol" });
+    expect(computePlayerPerspectiveFlip(swapped, "Bob")).toBe(false);
   });
 });

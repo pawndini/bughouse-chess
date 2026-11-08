@@ -105,7 +105,9 @@ export default function PromotionPicker({ board, to, side, allowed, onPick, onCa
   if (!anchor) {
     // If we cannot find the anchor square in the DOM, fail gracefully with a tiny fallback.
     return (
-      <div className="fixed inset-0 z-40 flex items-center justify-center">
+      <div className="fixed inset-0 z-40 flex items-center justify-center" onClick={(event) => {
+        if (event.target === event.currentTarget) onCancel();
+      }}>
         <div className="bg-gray-900 border border-gray-700 rounded-lg shadow-xl p-3">
           <div className="flex items-center justify-between gap-4 mb-2">
             <div className="text-xs font-semibold text-gray-200 uppercase tracking-wide">Promotion</div>
@@ -147,13 +149,15 @@ export default function PromotionPicker({ board, to, side, allowed, onPick, onCa
 
   /** Full CDN URL for a promotion option image. */
   const pieceImgUrl = (p: BughousePromotionPiece) =>
-    `https://chessboardjs.com/img/chesspieces/wikipedia/${pieceImgCode(p)}.png`;
+    `/pieces/${pieceImgCode(p)}.png`;
 
   const stackPieces = anchor.stackDown ? orderedAllowed : [...orderedAllowed].reverse();
   const count = stackPieces.length;
   const containerTop = anchor.stackDown ? anchor.top : anchor.top - (count - 1) * anchor.size;
 
   return (
+    <>
+      <button type="button" aria-label="Cancel promotion" className="fixed inset-0 z-40" onClick={onCancel} />
     <div
       className="fixed z-40"
       style={{
@@ -187,5 +191,6 @@ export default function PromotionPicker({ board, to, side, allowed, onPick, onCa
         ))}
       </div>
     </div>
+    </>
   );
 }

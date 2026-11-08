@@ -26,10 +26,10 @@ function Board({ fen, flipped, top, bottom, sprites }: {
  * The static preview does not carry the viewer's temporary flip/swap state.
  */
 export function PreviewImage({ state, caption, sprites }: { state: BughouseGameState; caption: string; sprites: Record<string, string> }) {
-  return <div style={{ display: "flex", flexDirection: "column", width: "100%", height: "100%", background: "#142c3c", color: "#f5f7fa", padding: "24px 64px", fontFamily: "sans-serif" }}>
+  return <div style={{ display: "flex", flexDirection: "column", width: "100%", height: "100%", background: "#202020", color: "#f5f5f5", padding: "24px 64px", fontFamily: "sans-serif" }}>
     <div style={{ display: "flex", justifyContent: "space-between", height: 54, alignItems: "center", marginBottom: 12 }}>
-      <div style={{ display: "flex", fontSize: 36, fontWeight: 700 }}>RELAY</div>
-      <div style={{ display: "flex", fontSize: 24, color: "#c2d3df" }}>{caption}</div>
+      <div style={{ display: "flex", fontSize: 36, fontWeight: 700 }}>BUG BULLY</div>
+      <div style={{ display: "flex", fontSize: 24, color: "#c7c7c7" }}>{caption}</div>
     </div>
     <div style={{ display: "flex", justifyContent: "space-between" }}>
       <Board fen={state.boardA.fen} flipped={false} top={state.players.aBlack.username} bottom={state.players.aWhite.username} sprites={sprites} />

@@ -45,6 +45,8 @@ export default function VariationSelector({
   if (children.length <= 1) return null;
 
   return (
+    <>
+      <button type="button" aria-label="Close variation selector" className="fixed inset-0 z-20" onClick={onCancel} />
     <div
       className="absolute z-20 right-4 top-4 w-[320px] bg-gray-900/95 border border-gray-700 rounded-lg shadow-xl backdrop-blur"
       role="dialog"
@@ -131,5 +133,6 @@ export default function VariationSelector({
         </div>
       </div>
     </div>
+    </>
   );
 }

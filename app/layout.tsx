@@ -32,7 +32,7 @@ const firaCode = Fira_Code({
 });
 
 /** Default `<title>` and Open Graph title for the marketing home page. */
-const siteTitle = "Relay - Bughouse Analysis";
+const siteTitle = "Bug Bully - Bughouse Analysis";
 
 /** Short description reused across metadata, Open Graph, and Twitter cards. */
 const siteDescription = "A minimalistic elegant tool for analyzing and replaying Bughouse Chess matches";
@@ -41,23 +41,23 @@ export const metadata: Metadata = {
   metadataBase,
   title: {
     default: siteTitle,
-    template: "%s | Relay",
+    template: "%s | Bug Bully",
   },
   description: siteDescription,
-  applicationName: "Relay",
+  applicationName: "Bug Bully",
   keywords: [
     "bughouse",
     "bughouse chess",
     "analysis board",
     "chess analysis",
-    "relay",
+    "bug bully",
     "game replay",
     "chess viewer",
     "chess variants",
   ],
   category: "Games",
-  creator: "Relay",
-  publisher: "Relay",
+  creator: "Bug Bully",
+  publisher: "Bug Bully",
   alternates: {
     canonical: "/",
   },
@@ -77,7 +77,7 @@ export const metadata: Metadata = {
     url: "/",
     title: siteTitle,
     description: siteDescription,
-    siteName: "Relay",
+    siteName: "Bug Bully",
     locale: "en_US",
     images: [
       {
@@ -85,7 +85,7 @@ export const metadata: Metadata = {
         width: 1200,
         height: 630,
         type: "image/png",
-        alt: "Relay - Bughouse Analysis",
+        alt: "Bug Bully - Bughouse Analysis",
       },
     ],
   },
@@ -101,13 +101,13 @@ export const metadata: Metadata = {
   manifest: "/site.webmanifest",
   icons: {
     icon: [
-      { url: "/favicon.ico" },
-      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
-      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon.ico?v=bug-bully-red-pawn" },
+      { url: "/favicon-32x32.png?v=bug-bully-red-pawn", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-16x16.png?v=bug-bully-red-pawn", sizes: "16x16", type: "image/png" },
     ],
     apple: [
       {
-        url: "/apple-touch-icon.png",
+        url: "/apple-touch-icon.png?v=bug-bully-red-pawn",
         sizes: "180x180",
         type: "image/png",
       },
@@ -116,7 +116,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#ffffff",
+  themeColor: "#111111",
 };
 
 /**

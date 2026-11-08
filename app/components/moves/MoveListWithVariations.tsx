@@ -757,7 +757,7 @@ export default function MoveListWithVariations({
     <div className="flex flex-col h-full bg-gray-800 rounded-lg overflow-hidden border border-gray-700 w-full">
       <div
         ref={containerRef}
-        className="overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800 relative"
+        className="min-h-0 flex-1 overflow-y-scroll relative [scrollbar-gutter:stable] [scrollbar-color:#9ca3af_#1f2937]"
         onContextMenu={(e) => {
           // Disable default context menu inside the move list.
           e.preventDefault();

@@ -133,3 +133,14 @@ export function getBottomPairKeyForGame(params: {
     ? extractABlackBWhitePairKey(gameData)
     : extractAWhiteBBlackPairKey(gameData);
 }
+
+/** Resolve the searched player's bottom-side orientation from the loaded boards. */
+export function computePlayerPerspectiveFlip(gameData: MinimalBughouseGameData, username?: string): boolean | null {
+  const player = username?.trim().toLowerCase();
+  if (!player) return null;
+  if (safeHeader(gameData.original, "White")?.toLowerCase() === player ||
+      safeHeader(gameData.partner, "Black")?.toLowerCase() === player) return false;
+  if (safeHeader(gameData.original, "Black")?.toLowerCase() === player ||
+      safeHeader(gameData.partner, "White")?.toLowerCase() === player) return true;
+  return null;
+}

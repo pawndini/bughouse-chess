@@ -142,7 +142,7 @@ const PieceReserveVertical: React.FC<PieceReserveVerticalProps> = ({
   /** Wikipedia-theme piece image URL for a reserve slot. */
   const getPieceImage = (piece: ReservePiece, color: ReserveColor) => {
     const code = color === "white" ? `w${piece.toUpperCase()}` : `b${piece.toUpperCase()}`;
-    return `https://chessboardjs.com/img/chesspieces/wikipedia/${code}.png`;
+    return `/pieces/${code}.png`;
   };
 
   const isCompact = density === "compact";

@@ -7,7 +7,7 @@ import { loadPreview } from "@/app/utils/social-preview/loadPreview.server";
 import { PreviewImage } from "@/app/utils/social-preview/PreviewImage";
 
 /**
- * Serve bundled Relay artwork with a short browser cache when a preview is unavailable.
+ * Serve bundled Bug Bully artwork with a short browser cache when a preview is unavailable.
  */
 async function fallback() {
   return new Response(await readFile(path.join(process.cwd(), "public/og-image.png")), {

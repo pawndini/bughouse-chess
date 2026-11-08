@@ -67,6 +67,8 @@ interface ChessBoardProps {
    * annotations. User interactions will call `onAnnotationsChange` to request updates.
    */
   annotations?: BoardAnnotations;
+  /** Ranked engine suggestions, rendered separately from user annotations. */
+  engineArrows?: { from: Square | null; to: Square; rank: number; perspective?: "team" | "opponent" }[];
   /**
    * Called whenever the user updates annotations via right-click/drag or clears them via click.
    *
@@ -221,6 +223,7 @@ export default function ChessBoard(
     flip = false,
     promotedSquares = [],
     annotations,
+    engineArrows = [],
     onAnnotationsChange,
     lastMoveFromSquare = null,
     lastMoveToSquare = null,
@@ -349,7 +352,7 @@ export default function ChessBoard(
       const config: Record<string, unknown> = {
         position: desiredFenRef.current || "start",
         orientation: desiredFlipRef.current ? "black" : "white",
-        pieceTheme: "https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png",
+        pieceTheme: "/pieces/{piece}.png",
         showNotation: true,
         draggable,
         onDragStart: (source: string, piece: string) => {
@@ -441,6 +444,10 @@ export default function ChessBoard(
       if (isSquare(from)) involvedSquares.add(from);
       if (isSquare(to)) involvedSquares.add(to);
     }
+    for (const arrow of engineArrows) {
+      if (arrow.from) involvedSquares.add(arrow.from);
+      involvedSquares.add(arrow.to);
+    }
 
     // If nothing is drawn, we still compute a square size (useful for future previews),
     // but keep centers empty.
@@ -465,7 +472,7 @@ export default function ChessBoard(
     }
 
     setAnnotationGeometry({ centers, squareSize, overlayPx });
-  }, [boardId]);
+  }, [boardId, engineArrows]);
 
   // Recompute annotation geometry when the board layout may have changed.
   useEffect(() => {
@@ -479,7 +486,7 @@ export default function ChessBoard(
       window.cancelAnimationFrame(id1);
       if (id2 !== null) window.cancelAnimationFrame(id2);
     };
-  }, [recomputeAnnotationGeometry, fen, flip, size, effectiveAnnotations.circles, effectiveAnnotations.arrows]);
+  }, [recomputeAnnotationGeometry, fen, flip, size, effectiveAnnotations.circles, effectiveAnnotations.arrows, engineArrows]);
 
   // Observe resizing to keep overlay aligned when the board is responsive.
   useEffect(() => {
@@ -859,26 +866,44 @@ export default function ChessBoard(
   // Note: We intentionally do NOT clear annotations on FEN changes here.
   // Persistence is handled by the parent by passing controlled `annotations`.
 
-  // Delegate square click handling (for click-to-drop).
+  // Chessboard.js hides the piece on mouse down. Firefox can therefore
+  // omit the click when the pressed piece is no longer the release target.
   useEffect(() => {
     const boardElement = document.getElementById(boardId);
     if (!boardElement) return;
 
-    const handler = (event: MouseEvent) => {
-      if (!interactionsEnabledRef.current) return;
-      const target = event.target;
-      if (!(target instanceof HTMLElement)) return;
-      const squareEl = target.closest("[data-square]");
-      if (!(squareEl instanceof HTMLElement)) return;
-      const square = squareEl.getAttribute("data-square");
-      if (!square) return;
-      const cb = onSquareClickRef.current;
-      if (!cb) return;
-      cb({ board: boardName, square: square as Square });
+    let pressedSquare: HTMLElement | null = null;
+    const onMouseDown = (event: MouseEvent) => {
+      pressedSquare = event.button === 0 && event.target instanceof HTMLElement
+        ? event.target.closest<HTMLElement>("[data-square]")
+        : null;
     };
 
-    boardElement.addEventListener("click", handler);
-    return () => boardElement.removeEventListener("click", handler);
+    const onMouseUp = (event: MouseEvent) => {
+      const source = pressedSquare;
+      pressedSquare = null;
+      if (!interactionsEnabledRef.current || event.button !== 0 || !source) return;
+      const bounds = source.getBoundingClientRect();
+      if (
+        event.clientX < bounds.left || event.clientX >= bounds.right ||
+        event.clientY < bounds.top || event.clientY >= bounds.bottom
+      ) return;
+      const square = source.dataset.square;
+      if (!square || circleSquaresRef.current.length || arrowKeysRef.current.length) return;
+      // Let chessboard.js finish its mouseup handler before applying a move.
+      window.setTimeout(() => {
+        if (boardElement.isConnected && interactionsEnabledRef.current) {
+          onSquareClickRef.current?.({ board: boardName, square: square as Square });
+        }
+      }, 0);
+    };
+
+    boardElement.addEventListener("mousedown", onMouseDown, true);
+    window.addEventListener("mouseup", onMouseUp, true);
+    return () => {
+      boardElement.removeEventListener("mousedown", onMouseDown, true);
+      window.removeEventListener("mouseup", onMouseUp, true);
+    };
   }, [boardId, boardName]);
 
   // Accept HTML5 drags from our reserve strip onto squares.
@@ -1047,11 +1072,40 @@ export default function ChessBoard(
       .filter(Boolean);
   }, [annotationGeometry, effectiveAnnotations.arrows]);
 
+  const renderedEngineArrows = useMemo(() => {
+    if (!annotationGeometry) return [];
+    const opacityByRank: Record<number, number> = { 1: 0.95, 2: 0.64, 3: 0.38 };
+    return engineArrows.map(({ from, to, rank, perspective = "team" }) => {
+      const end = annotationGeometry.centers.get(to);
+      const start = from ? annotationGeometry.centers.get(from) : null;
+      if (!end || (from && !start)) return null;
+      const opacity = opacityByRank[rank] ?? 0.35;
+      const color = perspective === "opponent" ? `rgb(222 112 29 / ${opacity})` : `rgb(25 94 48 / ${opacity})`;
+      if (!start) {
+        return <circle key={`engine-drop:${perspective}:${rank}:${to}`} cx={end.x} cy={end.y} r={annotationGeometry.squareSize * 0.2} fill={color} />;
+      }
+      const markerId = `bh-engine-arrowhead-${boardName}-${perspective}-${rank}`;
+      return (
+        <line
+          key={`engine:${perspective}:${rank}:${from}:${to}`}
+          x1={start.x}
+          y1={start.y}
+          x2={end.x}
+          y2={end.y}
+          markerEnd={`url(#${markerId})`}
+          stroke={color}
+          vectorEffect="non-scaling-stroke"
+          strokeWidth={4}
+        />
+      );
+    }).filter(Boolean);
+  }, [annotationGeometry, boardName, engineArrows]);
+
   return (
     <div className="flex flex-col items-center">
       <div className="relative" style={{ width: size }}>
         <div id={boardId} style={{ width: "100%" }} />
-        {hasAnnotations ? (
+        {hasAnnotations || engineArrows.length > 0 ? (
           <svg
             className="bh-board-annotation-overlay"
             viewBox="0 0 100 100"
@@ -1069,6 +1123,15 @@ export default function ChessBoard(
             }
           >
             <defs>
+              {(["team", "opponent"] as const).flatMap((perspective) => [1, 2, 3].map((rank) => {
+                const opacity = ({ 1: 0.95, 2: 0.64, 3: 0.38 } as Record<number, number>)[rank];
+                const color = perspective === "opponent" ? `rgb(222 112 29 / ${opacity})` : `rgb(25 94 48 / ${opacity})`;
+                return (
+                  <marker key={`${perspective}-${rank}`} id={`bh-engine-arrowhead-${boardName}-${perspective}-${rank}`} markerWidth="7" markerHeight="7" refX="5.6" refY="3.5" orient="auto" markerUnits="userSpaceOnUse">
+                    <path d="M0,0 L7,3.5 L0,7 Z" fill={color} />
+                  </marker>
+                );
+              }))}
               {/**
                * Arrowhead sizing:
                * - markerUnits=userSpaceOnUse so it scales with the SVG viewBox, not stroke width.
@@ -1126,6 +1189,7 @@ export default function ChessBoard(
                 );
               })()}
             </defs>
+            {renderedEngineArrows}
             {renderedArrows}
             {renderedCircles}
           </svg>

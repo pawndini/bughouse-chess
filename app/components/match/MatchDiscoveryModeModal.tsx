@@ -111,8 +111,8 @@ export default function MatchDiscoveryModeModal({
     : "text-xs text-gray-500 uppercase tracking-wider pt-2";
 
   const cancelButtonClassName = isCompact
-    ? "rounded border border-gray-700 bg-gray-800 px-2 py-0.5 text-[9px] text-gray-100 hover:bg-gray-700/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/50"
-    : "rounded border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-100 hover:bg-gray-700/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/50";
+    ? "rounded border border-gray-700 bg-gray-800 px-2 py-0.5 text-[9px] text-gray-100 hover:bg-gray-700/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/50"
+    : "rounded border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-100 hover:bg-gray-700/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/50";
 
   const cancelContainerClassName = isCompact ? "mt-1.5 flex justify-end" : "mt-5 flex justify-end";
 

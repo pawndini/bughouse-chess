@@ -1,8 +1,8 @@
-# Relay — Bughouse Chess Replay & Analysis Tool
+# Bug Bully — Bughouse Chess Replay & Analysis Tool
 
 **[Try the App Here](https://bughouse.aronteh.com/)**
 
-Relay is an elegant tool for **replaying and analyzing bughouse games from
+Bug Bully is an elegant tool for **replaying and analyzing bughouse games from
 chess.com**. It loads both boards of a bughouse match (the “partner” game),
 merges the moves into a single timeline, and gives you a powerful two-board UI
 for **drops**, **variations**, **live replay**, and **fast navigation**.
@@ -18,11 +18,11 @@ for **drops**, **variations**, **live replay**, and **fast navigation**.
   `https://bughouse.aronteh.com/?gameId=159878252255`
 - **Open shared games**: Use `?sharedId=<uuid>` to open games shared by other
   users
-- **Sample games**: When visiting without a game ID, Relay suggests a random
+- **Sample games**: When visiting without a game ID, Bug Bully suggests a random
   sample game to explore
 - **Partner board auto-detection**
-  - If chess.com provides `partnerGameId`, Relay uses it.
-  - Otherwise, Relay probes nearby IDs to find the paired board.
+  - If chess.com provides `partnerGameId`, Bug Bully uses it.
+  - Otherwise, Bug Bully probes nearby IDs to find the paired board.
 
 ### Replay the match (two boards, one timeline)
 
@@ -47,7 +47,7 @@ for **drops**, **variations**, **live replay**, and **fast navigation**.
 - **Bughouse drops**
   - Click a reserve piece to “arm” a drop, then click a target square.
   - Or drag reserve pieces onto the board.
-- **Promotion picker**: when a move needs promotion, Relay asks you to pick a
+- **Promotion picker**: when a move needs promotion, Bug Bully asks you to pick a
   piece.
 - **Reserves update correctly**: captures on one board feed the partner’s
   reserve.
@@ -79,7 +79,7 @@ for **drops**, **variations**, **live replay**, and **fast navigation**.
 ### Match navigation (multi-game)
 
 If you're playing a bughouse match consisting of multiple consecutive games,
-Relay can help you **discover and step through subsequent games** with the same
+Bug Bully can help you **discover and step through subsequent games** with the same
 four players and the same team pairings (rate-limited to be gentle to
 chess.com).
 
@@ -125,7 +125,7 @@ chess.com).
 
 ### Progressive Web App (PWA)
 
-- **Installable**: Add Relay to your home screen for a native app-like
+- **Installable**: Add Bug Bully to your home screen for a native app-like
   experience
 - **Landscape preference**: The manifest requests landscape orientation for
   Android phone user agents; enforcement depends on the browser/install mode
@@ -135,7 +135,7 @@ chess.com).
 
 ### Quick-open helpers (optional)
 
-- **Bookmarklet**: one-click bookmark to open the current game in Relay (see
+- **Bookmarklet**: one-click bookmark to open the current game in Bug Bully (see
   [`user_scripts/bookmarklet.md`](user_scripts/bookmarklet.md))
 - **TamperMonkey**: adds "Ellipviewer" buttons to bughouse games in chess.com
   game history (see
@@ -258,7 +258,7 @@ one corpus-backed player and a White/Black seat choice; autocomplete remains
 visible while typing, and Apply stays disabled until the input exactly matches
 an indexed username. A game ending at the current state appears as an
 unclickable `-` row. A continuation supported by exactly one game becomes a
-link to that source game in Relay's Bughouse
+link to that source game in Bug Bully's Bughouse
 analysis board and shows both players plus the result; keyboard navigation
 deliberately stops at that boundary. The analysis link opens in a new tab. The
 packed graph retains moves through the last shared placement plus one move (or
@@ -283,7 +283,7 @@ reaches from its own back rank. Every player card includes a nullable weighted
 average and an eight-bucket probability chart. **Average King Height** and
 **Touchdowns** are separate sort toggles; activating the selected metric again
 reverses its direction. An expandable, scroll-contained panel opens every
-public game in which the player's king reached the opposite back rank in Relay's
+public game in which the player's king reached the opposite back rank in Bug Bully's
 Bughouse analysis board; the UI calls these rare games **touchdowns**. These
 links open in a new tab. The minimum-games filter defaults to 1000
 and accepts only non-negative integers. White and Black directions are
@@ -332,7 +332,7 @@ search, a non-negative minimum-games filter, and pagination preserve those
 global ranks. Every retained game has its signed result, date, player colour,
 and a static final position using the analysis board's square palette and piece
 artwork. The board is oriented for that player and disables all moves and
-annotations. Each card links to the game in Relay. Desktop rows show three
+annotations. Each card links to the game in Bug Bully. Desktop rows show three
 equal boards; phone rows keep 272-pixel cards in an internal horizontal
 scroller so the page itself does not overflow.
 
@@ -419,7 +419,7 @@ and
 
 ### Firebase (optional, for metrics + analytics + user features)
 
-Relay supports:
+Bug Bully supports:
 
 - **Firestore Admin SDK** for the global game-load metric, server-rendered shared
   game summaries, social previews, and maintenance scripts
@@ -483,7 +483,7 @@ browser access is configured correctly.
 
 #### Firestore indexes (programmatic configuration)
 
-Relay keeps Firestore index definitions in `firestore.indexes.json` so indexes
+Bug Bully keeps Firestore index definitions in `firestore.indexes.json` so indexes
 can be deployed alongside rules with the Firebase CLI:
 
 ```bash
@@ -492,7 +492,7 @@ firebase deploy --only firestore:indexes
 
 #### Firebase Authentication (optional, for user sign-in)
 
-Relay supports **Google sign-in** via Firebase Authentication. When enabled,
+Bug Bully supports **Google sign-in** via Firebase Authentication. When enabled,
 users can sign in to unlock authenticated features like sharing games and
 syncing preferences across devices.
 
@@ -516,7 +516,7 @@ sidebar. Users can sign in with Google popup and sign out from the profile page.
 
 #### Firestore Collections Structure
 
-When using Firebase features, Relay creates the following Firestore structure:
+When using Firebase features, Bug Bully creates the following Firestore structure:
 
 - `metrics/global` - Global game load counter (server-only access)
 - `sharedGames/{sharedId}` - Public shared games collection
@@ -587,7 +587,7 @@ without changes:
 
 - `ply=N`: both boards after N moves in the combined timeline (0 is the initial position).
 - No `ply`: the final position; saved matches and partner series use their first stored game.
-- Homepage, unavailable games, missing partner boards, or replay failures: the Relay artwork.
+- Homepage, unavailable games, missing partner boards, or replay failures: the Bug Bully artwork.
 
 The renderer reuses the replay engine and bundled board artwork. Direct links read
 Chess.com; saved shares read only their public parent document and first indexed

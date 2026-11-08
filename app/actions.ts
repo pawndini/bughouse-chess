@@ -6,6 +6,8 @@
  */
 "use server";
 
+import type { OfflineGamePair } from "./utils/offlineGameStore";
+import type { PlayerGameEntry } from "./utils/discovery/playerGameList";
 import { revalidatePath } from "next/cache";
 import type { PublicGameRecord, PublicGamesResponse } from "./types/match";
 
@@ -261,6 +263,80 @@ export async function fetchPlayerMonthlyGames(
     console.error("Error fetching player monthly games:", error);
     throw new Error("Failed to fetch player games from Chess.com");
   }
+}
+
+export async function findPlayerBughouseGames(
+  username: string,
+  limit: number,
+  excludeOneMoveGames = false,
+): Promise<{ games: PlayerGameEntry[]; offlineGames: OfflineGamePair[] }> {
+  if (typeof username !== "string" || !/^[a-z0-9_-]{1,50}$/i.test(username)) {
+    throw new Error("Enter a valid Chess.com username.");
+  }
+  if (!Number.isInteger(limit) || limit < 1 || limit > 500) {
+    throw new Error("Choose a game limit from 1 to 500.");
+  }
+
+  if (typeof excludeOneMoveGames !== "boolean") {
+    throw new Error("Choose whether to exclude one-move games.");
+  }
+
+  const playerUrl = `https://api.chess.com/pub/player/${username.toLowerCase()}/games/`;
+  const response = await fetch(`${playerUrl}archives`, {
+    headers: {
+      Accept: "application/json",
+      "User-Agent": "BughouseAnalysis/1.0 (bughouse.aronteh.com)",
+    },
+    signal: AbortSignal.timeout(15000),
+  });
+  if (response.status === 404) throw new Error("Chess.com could not find that player's archive.");
+  if (response.status === 429) throw new Error("Chess.com is rate limiting requests. Try again later.");
+  if (!response.ok) throw new Error("Could not fetch the Chess.com archive.");
+
+  const { archives } = await response.json() as { archives: string[] };
+  const months = archives
+    .filter((url) => url.startsWith(playerUrl) && /^\d{4}\/\d{2}$/.test(url.slice(playerUrl.length)))
+    .sort()
+    .reverse();
+  const entries: PlayerGameEntry[] = [];
+  const offlineGames: OfflineGamePair[] = [];
+  const seen = new Set<string>();
+
+  for (const url of months) {
+    const [year, month] = url.slice(playerUrl.length).split("/").map(Number);
+    const games = await fetchPlayerMonthlyGames(username, year, month);
+    games.sort((a, b) => b.end_time - a.end_time);
+    for (const game of games) {
+      if (game.rules !== "bughouse") continue;
+      const id = /\/game\/live\/(\d+)\/?$/.exec(game.url)?.[1];
+      if (!id || seen.has(id)) continue;
+      const first = await fetchChessGame(id);
+      const partnerId = first?.game.partnerGameId?.toString();
+      if (!first || first.game.type !== "bughouse" || !partnerId) continue;
+      const second = await fetchChessGame(partnerId);
+      if (!second || second.game.type !== "bughouse") continue;
+
+      seen.add(id);
+      seen.add(partnerId);
+      // One full move is at most two plies on each board. Keep games with
+      // unknown counts rather than silently treating missing data as zero.
+      const plies = [first.game.plyCount, second.game.plyCount];
+      if (excludeOneMoveGames && plies.every((count) => Number.isInteger(count) && count >= 0 && count <= 2)) continue;
+
+      const headers = first.game.pgnHeaders;
+      entries.push({
+        id, partnerId, username: username.toLowerCase(),
+        date: new Date(game.end_time * 1000).toISOString(),
+        white: headers.White, black: headers.Black,
+        partnerWhite: second.game.pgnHeaders.White,
+        partnerBlack: second.game.pgnHeaders.Black,
+        result: headers.Result || "*", timeControl: game.time_control,
+      });
+      offlineGames.push({ original: first, partner: second, partnerId, perspectiveUsername: username.toLowerCase() });
+      if (entries.length === limit) return { games: entries, offlineGames };
+    }
+  }
+  return { games: entries, offlineGames };
 }
 
 /**
