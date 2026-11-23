@@ -406,9 +406,9 @@ const BughouseAnalysis: React.FC<BughouseAnalysisProps> = ({
   }, [mainlineNodeIdSet, state.cursorNodeId]);
 
   useEffect(() => {
-    if (!engineEnabled || !gameData || isLiveReplayPlaying) {
+    if (!engineEnabled || isLiveReplayPlaying) {
       setEngineResult(null);
-      setEngineStatus(engineEnabled ? "Load a game to analyze" : "Engine is off");
+      setEngineStatus(engineEnabled ? "Pause live replay to analyze" : "Engine is off");
       return;
     }
     const requestId = ++engineRequestIdRef.current;
@@ -484,7 +484,6 @@ const BughouseAnalysis: React.FC<BughouseAnalysisProps> = ({
     engineEnabled,
     engineMoveCount,
     isCursorOnMainline,
-    gameData,
     isBoardsFlipped,
     isLiveReplayPlaying,
   ]);
