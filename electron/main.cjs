@@ -1,4 +1,5 @@
 const { app, BrowserWindow, shell } = require("electron");
+const { autoUpdater } = require("electron-updater");
 const { spawn } = require("node:child_process");
 const net = require("node:net");
 const path = require("node:path");
@@ -84,13 +85,48 @@ async function startRelay() {
   await mainWindow.loadURL(url);
 }
 
+function configureAutoUpdates() {
+  if (!app.isPackaged) return;
+
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.autoRunAppAfterInstall = true;
+  autoUpdater.logger = console;
+
+  autoUpdater.on("update-available", (info) => {
+    console.info(`Bug Bully ${info.version} is available; downloading it in the background.`);
+  });
+  autoUpdater.on("update-not-available", (info) => {
+    console.info(`Bug Bully is up to date (${info.version}).`);
+  });
+  autoUpdater.on("update-downloaded", (info) => {
+    console.info(`Bug Bully ${info.version} is ready and will install when the app closes.`);
+  });
+  autoUpdater.on("error", (error) => {
+    console.error("Bug Bully could not check for or download an update:", error);
+  });
+
+  const checkForUpdates = () => {
+    void autoUpdater.checkForUpdatesAndNotify().catch((error) => {
+      console.error("Bug Bully update check failed:", error);
+    });
+  };
+
+  checkForUpdates();
+  const updateCheckTimer = setInterval(checkForUpdates, 4 * 60 * 60 * 1000);
+  updateCheckTimer.unref();
+}
+
 function stopServer() {
   if (serverProcess && serverProcess.exitCode === null) {
     serverProcess.kill();
   }
 }
 
-app.whenReady().then(startRelay).catch((error) => {
+app.whenReady().then(() => {
+  configureAutoUpdates();
+  return startRelay();
+}).catch((error) => {
   console.error("Bug Bully failed to start:", error);
   app.quit();
 });
@@ -114,3 +150,4 @@ app.on("activate", () => {
     });
   }
 });
+
