@@ -227,7 +227,7 @@ This builds Next.js in standalone mode, stages its server and assets, and create
 an x64 NSIS installer:
 
 ```text
-dist/Bug-Bully-Setup-2.7.3.exe
+dist/Bug-Bully-Setup-2.7.4.exe
 ```
 
 `npm run desktop:dir` creates the unpacked application under `dist/win-unpacked/`.
@@ -235,6 +235,13 @@ dist/Bug-Bully-Setup-2.7.3.exe
 The packaged app runs its own local server; users do not need a separate Node.js
 installation. Desktop and Start-menu shortcuts use **Bug Bully**. The current
 build does not configure a code-signing certificate.
+
+Packaged version 2.7.4 and later check GitHub Releases when they start and every
+four hours. Available updates download in the background and install when Bug
+Bully closes. Versions before 2.7.4 need one manual install of the newer setup
+file to enable updates. To publish a future desktop version, update the package
+version and push a matching `vX.Y.Z` tag; GitHub Actions builds and publishes the
+Windows installer and update metadata to a GitHub Release.
 
 Build outputs, `.desktop-stage`, local runtime/cache directories, and dependencies
 are ignored by Git. Rebuilding an installer does not install it or update an
@@ -384,3 +391,4 @@ Fairy-Stockfish's GPL license and authorship notices are included in
 and network provenance is recorded in that directory's `README.txt`.
 Chess-piece asset attribution is in `public/pieces/LICENSE.md`.
 Preserve these notices when redistributing the desktop package.
+
